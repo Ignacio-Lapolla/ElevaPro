@@ -311,6 +311,53 @@ private fun ClienteCard(
     }
 }
 
+// ─── Previews ───────────────────────────────────────────────────────────────
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Clientes – lista")
+@Composable
+private fun ClientesSuccessPreview() {
+    com.grupo.elevapro.ui.theme.ElevaProTheme {
+        ClientesContent(
+            estado = ClientesUiState.Success(
+                clientes = com.grupo.elevapro.data.repository.FakeMockData.clientes,
+                busqueda = "",
+            ),
+            onBusqueda = {},
+            onClienteClick = {},
+            onAgregarCliente = {},
+        )
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Clientes – búsqueda activa")
+@Composable
+private fun ClientesBusquedaPreview() {
+    com.grupo.elevapro.ui.theme.ElevaProTheme {
+        ClientesContent(
+            estado = ClientesUiState.Success(
+                clientes = com.grupo.elevapro.data.repository.FakeMockData.clientes.take(3),
+                busqueda = "Lafinur",
+            ),
+            onBusqueda = {},
+            onClienteClick = {},
+            onAgregarCliente = {},
+        )
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Clientes – loading")
+@Composable
+private fun ClientesLoadingPreview() {
+    com.grupo.elevapro.ui.theme.ElevaProTheme {
+        ClientesContent(
+            estado = ClientesUiState.Loading,
+            onBusqueda = {},
+            onClienteClick = {},
+            onAgregarCliente = {},
+        )
+    }
+}
+
 private fun Cliente.iniciales(): String {
     val palabras = nombre.trim().split(" ").filter { it.isNotBlank() }
     return when {

@@ -325,6 +325,56 @@ private fun SupervisorDropdown(
     }
 }
 
+// ─── Previews ───────────────────────────────────────────────────────────────
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "AgregarCliente – formulario vacío")
+@Composable
+private fun AgregarClienteVacioPreview() {
+    com.grupo.elevapro.ui.theme.ElevaProTheme {
+        AgregarClienteContent(
+            form = AgregarClienteFormState(),
+            supervisores = com.grupo.elevapro.data.repository.FakeMockData.supervisores,
+            onBack = {},
+            onNombre = {},
+            onTelefono = {},
+            onEmail = {},
+            onDireccion = {},
+            onCuit = {},
+            onSupervisor = { _, _ -> },
+            onNotas = {},
+            onGuardar = {},
+        )
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "AgregarCliente – formulario válido")
+@Composable
+private fun AgregarClienteValidoPreview() {
+    com.grupo.elevapro.ui.theme.ElevaProTheme {
+        AgregarClienteContent(
+            form = AgregarClienteFormState(
+                nombre = "Cons. Prop. Lafinur 3060",
+                telefono = "+54 11 4801-1234",
+                email = "admin@lafinur3060.com.ar",
+                direccion = "Lafinur 3060",
+                cuit = "30654321891",
+                supervisorNombre = "Carlos Méndez",
+                notas = "Ascensor modelo 2010, revisión semestral.",
+            ),
+            supervisores = com.grupo.elevapro.data.repository.FakeMockData.supervisores,
+            onBack = {},
+            onNombre = {},
+            onTelefono = {},
+            onEmail = {},
+            onDireccion = {},
+            onCuit = {},
+            onSupervisor = { _, _ -> },
+            onNotas = {},
+            onGuardar = {},
+        )
+    }
+}
+
 private object CuitVisualTransformation : VisualTransformation {
     override fun filter(text: androidx.compose.ui.text.AnnotatedString): TransformedText {
         val digits = text.text

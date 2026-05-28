@@ -361,6 +361,55 @@ private fun Badge(label: String, modifier: Modifier = Modifier) {
     }
 }
 
+// ─── Previews ───────────────────────────────────────────────────────────────
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "ClienteDetalle – con datos")
+@Composable
+private fun ClienteDetalleSuccessPreview() {
+    com.grupo.elevapro.ui.theme.ElevaProTheme {
+        ClienteDetalleContent(
+            estado = ClienteDetalleUiState.Success(
+                cliente = com.grupo.elevapro.data.repository.FakeMockData.clientes.first(),
+                ordenesRecientes = com.grupo.elevapro.data.repository.FakeMockData.ordenes.take(3),
+                supervisorNombre = "Carlos Méndez",
+            ),
+            onBack = {},
+            onEditar = {},
+            onOrdenClick = {},
+        )
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "ClienteDetalle – sin órdenes ni notas")
+@Composable
+private fun ClienteDetalleSinOrdenesPreview() {
+    com.grupo.elevapro.ui.theme.ElevaProTheme {
+        ClienteDetalleContent(
+            estado = ClienteDetalleUiState.Success(
+                cliente = com.grupo.elevapro.data.repository.FakeMockData.clientes[4],
+                ordenesRecientes = emptyList(),
+                supervisorNombre = null,
+            ),
+            onBack = {},
+            onEditar = {},
+            onOrdenClick = {},
+        )
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "ClienteDetalle – loading")
+@Composable
+private fun ClienteDetalleLoadingPreview() {
+    com.grupo.elevapro.ui.theme.ElevaProTheme {
+        ClienteDetalleContent(
+            estado = ClienteDetalleUiState.Loading,
+            onBack = {},
+            onEditar = {},
+            onOrdenClick = {},
+        )
+    }
+}
+
 private fun Cliente.inicialesDetalle(): String {
     val palabras = nombre.trim().split(" ").filter { it.isNotBlank() }
     return when {
