@@ -64,12 +64,8 @@ private val CardBorder = Color(0xFFBDBDBD)
 
 sealed interface ClientesUiState {
     data object Loading : ClientesUiState
-    data class Success(
-        val clientes: List<Cliente>,
-        val total: Int,
-        val query: String,
-    ) : ClientesUiState
-    data class Error(val mensaje: String) : ClientesUiState
+    data class Success(val clientes: List<Cliente>, val busqueda: String) : ClientesUiState
+    data class Error(val msg: String) : ClientesUiState
 }
 
 @HiltViewModel
@@ -77,21 +73,20 @@ class ClientesViewModel @Inject constructor(
     repository: ClienteRepository,
 ) : ViewModel() {
 
-    private val _query = MutableStateFlow("")
+    private val _busqueda = MutableStateFlow("")
 
     val estado: StateFlow<ClientesUiState> = combine(
         repository.observarClientes(),
-        _query,
-    ) { lista, query ->
-        val filtrados = if (query.isBlank()) lista
+        _busqueda,
+    ) { lista, busqueda ->
+        val filtrados = if (busqueda.isBlank()) lista
         else lista.filter {
-            it.nombre.contains(query, ignoreCase = true) ||
-                it.direccion.contains(query, ignoreCase = true)
+            it.nombre.contains(busqueda, ignoreCase = true) ||
+                it.direccion.contains(busqueda, ignoreCase = true)
         }
         ClientesUiState.Success(
             clientes = filtrados,
-            total = lista.size,
-            query = query,
+            busqueda = busqueda,
         ) as ClientesUiState
     }.stateIn(
         scope = viewModelScope,
@@ -99,7 +94,7 @@ class ClientesViewModel @Inject constructor(
         initialValue = ClientesUiState.Loading,
     )
 
-    fun onQuery(q: String) { _query.value = q }
+    fun onBusqueda(q: String) { _busqueda.value = q }
 }
 
 @Composable
@@ -112,7 +107,7 @@ fun ClientesScreen(
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     ClientesContent(
         estado = estado,
-        onQuery = viewModel::onQuery,
+        onBusqueda = viewModel::onBusqueda,
         onClienteClick = onClienteClick,
         onAgregarCliente = onAgregarCliente,
         modifier = modifier,
@@ -122,12 +117,12 @@ fun ClientesScreen(
 @Composable
 private fun ClientesContent(
     estado: ClientesUiState,
-    onQuery: (String) -> Unit,
+    onBusqueda: (String) -> Unit,
     onClienteClick: (String) -> Unit,
     onAgregarCliente: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val query = if (estado is ClientesUiState.Success) estado.query else ""
+    val busqueda = if (estado is ClientesUiState.Success) estado.busqueda else ""
 
     Scaffold(
         topBar = {
@@ -157,8 +152,8 @@ private fun ClientesContent(
                 .background(SurfaceLight),
         ) {
             OutlinedTextField(
-                value = query,
-                onValueChange = onQuery,
+                value = busqueda,
+                onValueChange = onBusqueda,
                 placeholder = {
                     Text(
                         "Buscar por nombre o dirección…",
@@ -192,13 +187,13 @@ private fun ClientesContent(
                     modifier = Modifier.padding(16.dp),
                 )
                 is ClientesUiState.Error -> Text(
-                    text = estado.mensaje,
+                    text = estado.msg,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(16.dp),
                 )
                 is ClientesUiState.Success -> {
                     Text(
-                        text = "${estado.total} clientes",
+                        text = "${estado.clientes.size} clientes",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
