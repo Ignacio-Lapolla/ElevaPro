@@ -117,7 +117,7 @@ class ArticulosViewModel @Inject constructor(
             categorias = listOf("Todas") + lista.map { it.categoria }.distinct(),
             busqueda = q,
             categoriaSeleccionada = cat,
-        )
+        ) as ArticulosUiState
     }.catch { e ->
         emit(ArticulosUiState.Error(e.message ?: "Error inesperado"))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ArticulosUiState.Loading)

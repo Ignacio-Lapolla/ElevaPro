@@ -84,7 +84,7 @@ private val faqs = listOf(
 
 // ── Eventos one-shot ──────────────────────────────────────────────────────────
 
-private sealed interface AyudaEvent {
+sealed interface AyudaEvent {
     data object ContactarEmail : AyudaEvent
     data object ContactarWhatsApp : AyudaEvent
 }
