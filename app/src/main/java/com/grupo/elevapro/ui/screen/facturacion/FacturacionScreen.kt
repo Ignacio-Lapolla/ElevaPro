@@ -52,14 +52,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import java.text.NumberFormat
-import java.util.Locale
+
 import javax.inject.Inject
 
 sealed interface FacturacionUiState {
     data object Loading : FacturacionUiState
     data object SinPermiso : FacturacionUiState
     data class Success(val facturas: List<Factura>, val filtro: EstadoFactura?) : FacturacionUiState
+    data class Error(val msg: String) : FacturacionUiState
 }
 
 private val OPCIONES_FILTRO: List<Pair<EstadoFactura?, String>> = listOf(
@@ -389,5 +389,3 @@ private fun FacturacionSoloAdminPreview() {
     }
 }
 
-private fun formatearMonto(monto: Double): String =
-    NumberFormat.getCurrencyInstance(Locale("es", "AR")).format(monto)

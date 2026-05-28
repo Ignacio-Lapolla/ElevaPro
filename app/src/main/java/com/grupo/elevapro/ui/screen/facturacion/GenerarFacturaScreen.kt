@@ -13,34 +13,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -62,17 +48,13 @@ import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.FilledPrimaryButton
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
@@ -127,26 +109,26 @@ class GenerarFacturaViewModel @Inject constructor(
     val estado: StateFlow<GenerarFacturaUiState> = _estado.asStateFlow()
 
     init {
-        viewModelScope.launch {
-            combine(
-                clienteRepository.observarClientes(),
-                ordenesRepository.observarOrdenes(),
-                _form,
-            ) { clientes, ordenes, form ->
-                val pendientes = if (form.clienteId.isBlank()) emptyList()
-                else ordenes.filter { it.clienteId == form.clienteId && !it.facturado }
-                GenerarFacturaUiState.Formulario(
-                    form = form,
-                    clientes = clientes,
-                    ordenesPendientes = pendientes,
-                    articulos = FakeMockData.articulos,
-                )
-            }.collect { nuevo ->
+        combine(
+            clienteRepository.observarClientes(),
+            ordenesRepository.observarOrdenes(),
+            _form,
+        ) { clientes, ordenes, form ->
+            val pendientes = if (form.clienteId.isBlank()) emptyList()
+            else ordenes.filter { it.clienteId == form.clienteId && !it.facturado }
+            GenerarFacturaUiState.Formulario(
+                form = form,
+                clientes = clientes,
+                ordenesPendientes = pendientes,
+                articulos = FakeMockData.articulos,
+            )
+        }
+            .onEach { nuevo ->
                 if (_estado.value !is GenerarFacturaUiState.Generado) {
                     _estado.value = nuevo
                 }
             }
-        }
+            .launchIn(viewModelScope)
     }
 
     fun onCliente(id: String, nombre: String) = updateForm {
@@ -422,11 +404,11 @@ private fun GenerarFacturaContent(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilaResumen("Neto", formatearMonto(formulario.montoNeto))
+                        FilaImporte("Neto", formatearMonto(formulario.montoNeto))
                         HorizontalDivider()
-                        FilaResumen("IVA 21%", formatearMonto(formulario.montoIva))
+                        FilaImporte("IVA 21%", formatearMonto(formulario.montoIva))
                         HorizontalDivider()
-                        FilaResumen(
+                        FilaImporte(
                             "Total",
                             formatearMonto(formulario.montoTotal),
                             negrita = true,
@@ -457,118 +439,7 @@ private fun GenerarFacturaContent(
     }
 }
 
-// ─── Componentes privados ────────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DatePickerField(
-    label: String,
-    valor: String,
-    onFecha: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var mostrar by remember { mutableStateOf(false) }
-    val dpState = rememberDatePickerState()
-
-    if (mostrar) {
-        DatePickerDialog(
-            onDismissRequest = { mostrar = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    dpState.selectedDateMillis?.let { millis ->
-                        onFecha(epochToDisplay(millis))
-                    }
-                    mostrar = false
-                }) { Text("Aceptar") }
-            },
-            dismissButton = {
-                TextButton(onClick = { mostrar = false }) { Text("Cancelar") }
-            },
-        ) {
-            DatePicker(state = dpState)
-        }
-    }
-
-    OutlinedTextField(
-        value = valor,
-        onValueChange = {},
-        readOnly = true,
-        label = { Text(label, style = MaterialTheme.typography.bodySmall) },
-        leadingIcon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null) },
-        modifier = modifier,
-        // tap anywhere on the field to open picker
-        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-            .also { source ->
-                LaunchedEffect(source) {
-                    source.interactions.collect { interaction ->
-                        if (interaction is androidx.compose.foundation.interaction.PressInteraction.Release) {
-                            mostrar = true
-                        }
-                    }
-                }
-            },
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ClienteDropdown(
-    clientes: List<Cliente>,
-    seleccionadoNombre: String,
-    onSeleccion: (String, String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var expandido by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expandido, onExpandedChange = { expandido = it }, modifier = modifier) {
-        OutlinedTextField(
-            value = seleccionadoNombre,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Cliente *") },
-            leadingIcon = { Icon(Icons.Outlined.People, contentDescription = null) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandido) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = expandido, onDismissRequest = { expandido = false }) {
-            clientes.forEach { cliente ->
-                DropdownMenuItem(
-                    text = { Text(cliente.nombre) },
-                    onClick = { onSeleccion(cliente.id, cliente.nombre); expandido = false },
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TipoDropdown(
-    seleccionado: String,
-    onSeleccion: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val tipos = listOf("A", "B", "C")
-    var expandido by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expandido, onExpandedChange = { expandido = it }, modifier = modifier) {
-        OutlinedTextField(
-            value = if (seleccionado.isNotBlank()) "Factura $seleccionado" else "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Tipo de factura *") },
-            leadingIcon = { Icon(Icons.Outlined.Receipt, contentDescription = null) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandido) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = expandido, onDismissRequest = { expandido = false }) {
-            tipos.forEach { tipo ->
-                DropdownMenuItem(
-                    text = { Text("Factura $tipo") },
-                    onClick = { onSeleccion(tipo); expandido = false },
-                )
-            }
-        }
-    }
-}
+// ─── Componentes locales ────────────────────────────────────────────────────
 
 @Composable
 private fun SeccionLabel(texto: String) {
@@ -577,32 +448,6 @@ private fun SeccionLabel(texto: String) {
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-}
-
-@Composable
-private fun FilaResumen(
-    label: String,
-    valor: String,
-    negrita: Boolean = false,
-    colorValor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = if (negrita) MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-            else MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            text = valor,
-            style = if (negrita) MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-            else MaterialTheme.typography.bodyMedium,
-            color = colorValor,
-        )
-    }
 }
 
 // ─── Previews ────────────────────────────────────────────────────────────────
@@ -660,10 +505,3 @@ private fun GenerarFacturaConDatosPreview() {
     }
 }
 
-// ─── Utilidades ──────────────────────────────────────────────────────────────
-
-private fun epochToDisplay(millis: Long): String =
-    SimpleDateFormat("dd MMM yyyy", Locale("es", "AR")).format(Date(millis))
-
-private fun formatearMonto(monto: Double): String =
-    NumberFormat.getCurrencyInstance(Locale("es", "AR")).format(monto)
