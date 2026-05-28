@@ -1,7 +1,7 @@
 package com.grupo.elevapro.data.model.domain
 
 data class Empresa(
-    val id: String = "e1",
+    val id: String,
     val razonSocial: String,
     val cuit: String,
     val direccion: String,
