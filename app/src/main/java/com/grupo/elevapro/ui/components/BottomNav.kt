@@ -2,13 +2,16 @@ package com.grupo.elevapro.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.Inventory
+import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Inventory
 import androidx.compose.material.icons.outlined.People
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,7 +34,7 @@ fun ElevaProBottomNav(
         Rol.ADMINISTRADOR -> listOf(
             ItemNav(Screen.Ordenes.route, "Órdenes", Icons.Outlined.Description),
             ItemNav(Screen.Clientes.route, "Clientes", Icons.Outlined.People),
-            ItemNav(Screen.Facturacion.route, "Facturas", Icons.Outlined.ReceiptLong),
+            ItemNav(Screen.Facturacion.route, "Facturas", Icons.Outlined.AttachMoney),
             ItemNav(Screen.Perfil.route, "Perfil", Icons.Outlined.AccountCircle),
         )
         Rol.OPERATIVO -> listOf(
@@ -41,13 +44,20 @@ fun ElevaProBottomNav(
             ItemNav(Screen.Perfil.route, "Perfil", Icons.Outlined.AccountCircle),
         )
     }
-    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-    NavigationBar(modifier = modifier) {
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentEntry?.destination?.route
+
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = NavigationBarDefaults.Elevation,
+        modifier = modifier,
+    ) {
         items.forEach { item ->
+            val selected = currentRoute == item.route
             NavigationBarItem(
-                selected = currentRoute == item.route,
+                selected = selected,
                 onClick = {
-                    if (currentRoute != item.route) {
+                    if (!selected) {
                         navController.navigate(item.route) {
                             popUpTo(navController.graph.startDestinationId) { saveState = true }
                             launchSingleTop = true
@@ -56,7 +66,14 @@ fun ElevaProBottomNav(
                     }
                 },
                 icon = { Icon(item.icon, contentDescription = item.label) },
-                label = { Text(item.label) },
+                label = { Text(item.label, style = MaterialTheme.typography.labelMedium) },
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
             )
         }
     }
