@@ -29,6 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,8 +47,10 @@ import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.StatusChip
 import com.grupo.elevapro.ui.components.TipoEstado
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
@@ -66,7 +69,20 @@ class PerfilViewModel @Inject constructor(
         .map { u -> if (u != null) PerfilUiState.Success(u) else PerfilUiState.Loading as PerfilUiState }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PerfilUiState.Loading)
 
-    fun logout() = authRepository.logout()
+    init {
+        // El usuario actual es provisto reactivamente por AuthRepository.
+        // Para H2: aquí se refrescarían los datos del perfil desde el backend.
+    }
+
+    private val _loggedOut = MutableStateFlow(false)
+    val loggedOut: StateFlow<Boolean> = _loggedOut.asStateFlow()
+
+    fun logout() {
+        authRepository.logout()
+        _loggedOut.value = true
+    }
+
+    fun onLogoutHandled() { _loggedOut.value = false }
 }
 
 @Composable
@@ -80,19 +96,25 @@ fun PerfilScreen(
     modifier: Modifier = Modifier,
     viewModel: PerfilViewModel = hiltViewModel(),
 ) {
-    val estado by viewModel.estado.collectAsStateWithLifecycle()
-    PerfilContent(
-        estado         = estado,
-        onSupervisores = onSupervisores,
-        onPlantillas   = onPlantillas,
-        onDatosEmpresa = onDatosEmpresa,
-        onUsuarios     = onUsuarios,
-        onRolesPermisos = onRolesPermisos,
-        onLogout       = {
-            viewModel.logout()
+    val estado    by viewModel.estado.collectAsStateWithLifecycle()
+    val loggedOut by viewModel.loggedOut.collectAsStateWithLifecycle()
+
+    LaunchedEffect(loggedOut) {
+        if (loggedOut) {
+            viewModel.onLogoutHandled()
             onLogout()
-        },
-        modifier = modifier,
+        }
+    }
+
+    PerfilContent(
+        estado          = estado,
+        onSupervisores  = onSupervisores,
+        onPlantillas    = onPlantillas,
+        onDatosEmpresa  = onDatosEmpresa,
+        onUsuarios      = onUsuarios,
+        onRolesPermisos = onRolesPermisos,
+        onLogout        = viewModel::logout,
+        modifier        = modifier,
     )
 }
 
