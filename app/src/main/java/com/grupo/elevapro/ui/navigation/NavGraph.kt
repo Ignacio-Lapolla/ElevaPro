@@ -15,7 +15,6 @@ import com.grupo.elevapro.ui.screen.facturacion.FacturaDetalleScreen
 import com.grupo.elevapro.ui.screen.facturacion.FacturacionScreen
 import com.grupo.elevapro.ui.screen.facturacion.GenerarFacturaScreen
 import com.grupo.elevapro.ui.screen.facturacion.NuevaFacturaScreen
-import com.grupo.elevapro.ui.screen.clientes.ClienteDetalleScreen
 import com.grupo.elevapro.ui.screen.clientes.ClientesScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
 
@@ -24,6 +23,7 @@ fun NavGraph(
     navController: NavHostController,
     startDestination: String,
     modifier: Modifier = Modifier,
+    onOpenDrawer: () -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -55,6 +55,7 @@ fun NavGraph(
             OrdenesScreen(
                 onOrdenClick = { id -> navController.navigate(Screen.OrdenDetalle.build(id)) },
                 onNuevaOrden = { navController.navigate(Screen.NuevaOrden.route) },
+                onOpenDrawer = onOpenDrawer,
             )
         }
         composable(
@@ -76,18 +77,9 @@ fun NavGraph(
         // Clientes
         composable(Screen.Clientes.route) {
             ClientesScreen(
-                onClienteClick = { id -> navController.navigate(Screen.ClienteDetalle.build(id)) },
+                onClienteClick = { id -> navController.navigate(Screen.AgregarCliente.build(id)) },
                 onAgregarCliente = { navController.navigate(Screen.AgregarCliente.route_base) },
-            )
-        }
-        composable(
-            route = Screen.ClienteDetalle.route,
-            arguments = listOf(navArgument(Screen.ClienteDetalle.ARG_ID) { type = NavType.StringType }),
-        ) {
-            ClienteDetalleScreen(
-                onBack = { navController.popBackStack() },
-                onEditar = { id -> navController.navigate(Screen.AgregarCliente.build(id)) },
-                onOrdenClick = { id -> navController.navigate(Screen.OrdenDetalle.build(id)) },
+                onOpenDrawer = onOpenDrawer,
             )
         }
         composable(
@@ -108,6 +100,7 @@ fun NavGraph(
             FacturacionScreen(
                 onFacturaClick = { id -> navController.navigate(Screen.FacturaDetalle.build(id)) },
                 onGenerarFactura = { navController.navigate(Screen.GenerarFactura.route) },
+                onOpenDrawer = onOpenDrawer,
             )
         }
         composable(
