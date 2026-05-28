@@ -1,41 +1,54 @@
 package com.grupo.elevapro.ui.screen.facturacion
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.FileOpen
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Receipt
-import androidx.compose.material.icons.outlined.Remove
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import com.grupo.elevapro.data.model.domain.Articulo
 import com.grupo.elevapro.data.model.domain.Cliente
 import com.grupo.elevapro.data.model.domain.EstadoFactura
 import com.grupo.elevapro.data.model.domain.Factura
@@ -44,8 +57,11 @@ import com.grupo.elevapro.data.repository.ClienteRepository
 import com.grupo.elevapro.data.repository.FacturacionRepository
 import com.grupo.elevapro.data.repository.FakeMockData
 import com.grupo.elevapro.data.repository.OrdenesRepository
+import com.grupo.elevapro.ui.components.ElevaProTextField
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.FilledPrimaryButton
+import com.grupo.elevapro.ui.theme.OnTertiaryContainer
+import com.grupo.elevapro.ui.theme.TertiaryContainer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,13 +82,25 @@ data class GenerarFacturaFormState(
     val tipo: String = "",
     val fechaDesde: String = "",
     val fechaHasta: String = "",
+    val cuit: String = "",
+    val tipoPago: String = "",
+    val descripcion: String = "",
+    val montoNetoStr: String = "",
+    val ordenVinculadaId: String = "",
+    // legacy — keep for ViewModel compatibility
     val ordenesSeleccionadas: Set<String> = emptySet(),
     val articulosConCantidad: Map<String, Int> = emptyMap(),
     val generando: Boolean = false,
     val error: String? = null,
 ) {
+    val montoNeto: Double get() = montoNetoStr.replace(",", ".").toDoubleOrNull() ?: 0.0
+    val isConIVA: Boolean get() = tipo == "A" || tipo == "B"
+    val montoIVA: Double get() = if (isConIVA) montoNeto * 0.21 else 0.0
+    val montoTotal: Double get() = montoNeto + montoIVA
     val isFormValid: Boolean
-        get() = clienteId.isNotBlank() && tipo.isNotBlank() && fechaDesde.isNotBlank()
+        get() = clienteId.isNotBlank() && tipo.isNotBlank() && fechaDesde.isNotBlank() &&
+                fechaHasta.isNotBlank() && cuit.isNotBlank() && tipoPago.isNotBlank() &&
+                descripcion.isNotBlank() && montoNeto > 0
 }
 
 // ─── UiState ─────────────────────────────────────────────────────────────────
@@ -82,16 +110,8 @@ sealed interface GenerarFacturaUiState {
     data class Formulario(
         val form: GenerarFacturaFormState,
         val clientes: List<Cliente>,
-        val ordenesPendientes: List<Orden>,
-        val articulos: List<Articulo>,
-    ) : GenerarFacturaUiState {
-        val montoNeto: Double
-            get() = form.articulosConCantidad.entries.sumOf { (artId, cant) ->
-                articulos.find { it.id == artId }?.precio?.times(cant) ?: 0.0
-            }
-        val montoIva: Double get() = montoNeto * 0.21
-        val montoTotal: Double get() = montoNeto + montoIva
-    }
+        val ordenesFirmadas: List<Orden>,
+    ) : GenerarFacturaUiState
     data object Generado : GenerarFacturaUiState
 }
 
@@ -100,7 +120,7 @@ sealed interface GenerarFacturaUiState {
 @HiltViewModel
 class GenerarFacturaViewModel @Inject constructor(
     private val clienteRepository: ClienteRepository,
-    private val ordenesRepository: OrdenesRepository,
+    ordenesRepository: OrdenesRepository,
     private val facturacionRepository: FacturacionRepository,
 ) : ViewModel() {
 
@@ -114,45 +134,28 @@ class GenerarFacturaViewModel @Inject constructor(
             ordenesRepository.observarOrdenes(),
             _form,
         ) { clientes, ordenes, form ->
-            val pendientes = if (form.clienteId.isBlank()) emptyList()
-            else ordenes.filter { it.clienteId == form.clienteId && !it.facturado }
             GenerarFacturaUiState.Formulario(
                 form = form,
                 clientes = clientes,
-                ordenesPendientes = pendientes,
-                articulos = FakeMockData.articulos,
+                ordenesFirmadas = ordenes.filter { it.firmada && !it.facturado },
             )
-        }
-            .onEach { nuevo ->
-                if (_estado.value !is GenerarFacturaUiState.Generado) {
-                    _estado.value = nuevo
-                }
-            }
-            .launchIn(viewModelScope)
+        }.onEach { nuevo ->
+            if (_estado.value !is GenerarFacturaUiState.Generado) _estado.value = nuevo
+        }.launchIn(viewModelScope)
     }
 
-    fun onCliente(id: String, nombre: String) = updateForm {
-        copy(clienteId = id, clienteNombre = nombre, ordenesSeleccionadas = emptySet())
+    fun onCliente(id: String, nombre: String) {
+        val cliente = FakeMockData.clientes.find { it.id == id }
+        updateForm { copy(clienteId = id, clienteNombre = nombre, cuit = cliente?.cuit ?: "") }
     }
     fun onTipo(t: String) = updateForm { copy(tipo = t) }
     fun onFechaDesde(f: String) = updateForm { copy(fechaDesde = f) }
     fun onFechaHasta(f: String) = updateForm { copy(fechaHasta = f) }
-
-    fun onToggleOrden(ordenId: String) = updateForm {
-        val nuevas = if (ordenId in ordenesSeleccionadas)
-            ordenesSeleccionadas - ordenId
-        else
-            ordenesSeleccionadas + ordenId
-        copy(ordenesSeleccionadas = nuevas)
-    }
-
-    fun onCantidadArticulo(articuloId: String, delta: Int) = updateForm {
-        val actual = articulosConCantidad.getOrDefault(articuloId, 0)
-        val nueva = (actual + delta).coerceAtLeast(0)
-        val nuevoMapa = if (nueva == 0) articulosConCantidad - articuloId
-        else articulosConCantidad + (articuloId to nueva)
-        copy(articulosConCantidad = nuevoMapa)
-    }
+    fun onCuit(v: String) = updateForm { copy(cuit = v) }
+    fun onTipoPago(v: String) = updateForm { copy(tipoPago = v) }
+    fun onDescripcion(v: String) = updateForm { copy(descripcion = v) }
+    fun onMontoNeto(v: String) = updateForm { copy(montoNetoStr = v.filter { it.isDigit() || it == ',' || it == '.' }) }
+    fun onOrdenVinculada(id: String) = updateForm { copy(ordenVinculadaId = id) }
 
     fun generar() {
         val formulario = (_estado.value as? GenerarFacturaUiState.Formulario) ?: return
@@ -169,9 +172,9 @@ class GenerarFacturaViewModel @Inject constructor(
                         clienteId = form.clienteId,
                         clienteNombre = form.clienteNombre,
                         fecha = form.fechaDesde,
-                        monto = formulario.montoTotal,
+                        monto = form.montoTotal,
                         estado = EstadoFactura.PENDIENTE,
-                        ordenesIds = form.ordenesSeleccionadas.toList(),
+                        ordenesIds = if (form.ordenVinculadaId.isNotBlank()) listOf(form.ordenVinculadaId) else emptyList(),
                     )
                 )
                 _estado.value = GenerarFacturaUiState.Generado
@@ -195,13 +198,8 @@ fun GenerarFacturaScreen(
     viewModel: GenerarFacturaViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
-
-    LaunchedEffect(estado) {
-        if (estado is GenerarFacturaUiState.Generado) onBack()
-    }
-
+    LaunchedEffect(estado) { if (estado is GenerarFacturaUiState.Generado) onBack() }
     val formulario = estado as? GenerarFacturaUiState.Formulario
-
     GenerarFacturaContent(
         formulario = formulario,
         onBack = onBack,
@@ -209,8 +207,11 @@ fun GenerarFacturaScreen(
         onTipo = viewModel::onTipo,
         onFechaDesde = viewModel::onFechaDesde,
         onFechaHasta = viewModel::onFechaHasta,
-        onToggleOrden = viewModel::onToggleOrden,
-        onCantidadArticulo = viewModel::onCantidadArticulo,
+        onCuit = viewModel::onCuit,
+        onTipoPago = viewModel::onTipoPago,
+        onDescripcion = viewModel::onDescripcion,
+        onMontoNeto = viewModel::onMontoNeto,
+        onOrdenVinculada = viewModel::onOrdenVinculada,
         onGenerar = viewModel::generar,
         modifier = modifier,
     )
@@ -225,24 +226,40 @@ private fun GenerarFacturaContent(
     onTipo: (String) -> Unit,
     onFechaDesde: (String) -> Unit,
     onFechaHasta: (String) -> Unit,
-    onToggleOrden: (String) -> Unit,
-    onCantidadArticulo: (String, Int) -> Unit,
+    onCuit: (String) -> Unit,
+    onTipoPago: (String) -> Unit,
+    onDescripcion: (String) -> Unit,
+    onMontoNeto: (String) -> Unit,
+    onOrdenVinculada: (String) -> Unit,
     onGenerar: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
         topBar = {
             ElevaProTopAppBar(
-                titulo = "Generar factura",
+                titulo = "Generar Factura",
                 onBack = onBack,
                 acciones = {
-                    Icon(
-                        Icons.Outlined.Receipt,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
+                    Icon(Icons.Outlined.Receipt, contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(end = 12.dp))
                 },
             )
+        },
+        bottomBar = {
+            Surface(shadowElevation = 8.dp, modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (formulario?.form?.error != null) {
+                        Text(formulario.form.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                    FilledPrimaryButton(
+                        text = if (formulario?.form?.generando == true) "Generando…" else "Generar vista previa",
+                        onClick = onGenerar,
+                        enabled = formulario?.form?.isFormValid == true && formulario.form.generando == false,
+                        icon = Icons.Outlined.Receipt,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
         },
         modifier = modifier,
     ) { padding ->
@@ -257,251 +274,232 @@ private fun GenerarFacturaContent(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            // ── Período ──
-            SeccionLabel("Período de facturación")
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                DatePickerField(
-                    label = "Fecha desde *",
-                    valor = form.fechaDesde,
-                    onFecha = onFechaDesde,
-                    modifier = Modifier.weight(1f),
+
+            // ── Período de facturación ────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SeccionHeader("Período de facturación")
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DatePickerField(
+                        label = "Fecha desde *",
+                        valor = form.fechaDesde,
+                        onFecha = onFechaDesde,
+                        modifier = Modifier.weight(1f),
+                    )
+                    DatePickerField(
+                        label = "Fecha hasta *",
+                        valor = form.fechaHasta,
+                        onFecha = onFechaHasta,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+
+            // ── Datos de la factura ───────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SeccionHeader("Datos de la factura")
+                TipoDropdown(
+                    seleccionado = form.tipo,
+                    onSeleccion = onTipo,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                DatePickerField(
-                    label = "Fecha hasta",
-                    valor = form.fechaHasta,
-                    onFecha = onFechaHasta,
-                    modifier = Modifier.weight(1f),
+                ClienteDropdown(
+                    clientes = formulario.clientes,
+                    seleccionadoNombre = form.clienteNombre,
+                    onSeleccion = onCliente,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (form.clienteNombre.isNotBlank()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Outlined.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 4.dp))
+                        Text(form.clienteNombre, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                }
+                ElevaProTextField(
+                    value = form.cuit,
+                    onValueChange = onCuit,
+                    label = "CUIT *",
+                    leadingIcon = Icons.Outlined.CreditCard,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // Tipo de pago dropdown
+                TipoPagoDropdown(
+                    seleccionado = form.tipoPago,
+                    onSeleccion = onTipoPago,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
-            // ── Datos ──
-            SeccionLabel("Datos de la factura")
-            ClienteDropdown(
-                clientes = formulario.clientes,
-                seleccionadoNombre = form.clienteNombre,
-                onSeleccion = onCliente,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            TipoDropdown(
-                seleccionado = form.tipo,
-                onSeleccion = onTipo,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            // ── Órdenes pendientes ──
-            if (form.clienteId.isNotBlank()) {
-                SeccionLabel("Órdenes pendientes de facturar")
-                if (formulario.ordenesPendientes.isEmpty()) {
-                    Text(
-                        "Sin órdenes pendientes para este cliente",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
+            // ── Montos ────────────────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SeccionHeader("Montos")
+                ElevaProTextField(
+                    value = form.descripcion,
+                    onValueChange = onDescripcion,
+                    label = "Descripción del servicio *",
+                    leadingIcon = Icons.Outlined.FileOpen,
+                    singleLine = false,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                ElevaProTextField(
+                    value = form.montoNetoStr,
+                    onValueChange = onMontoNeto,
+                    label = if (form.tipo == "C") "Monto total *" else "Monto neto *",
+                    leadingIcon = Icons.Outlined.Receipt,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // IVA breakdown — visible si hay monto y tipo
+                if (form.montoNetoStr.isNotBlank() && form.tipo.isNotBlank()) {
                     Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column {
-                            formulario.ordenesPendientes.forEachIndexed { i, orden ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Checkbox(
-                                        checked = orden.id in form.ordenesSeleccionadas,
-                                        onCheckedChange = { onToggleOrden(orden.id) },
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(orden.numero, style = MaterialTheme.typography.bodyMedium)
-                                        Text(
-                                            "${orden.tipo} · ${orden.fecha}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Subtotal", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(formatearMonto(form.montoNeto), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
+                            }
+                            if (form.isConIVA) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("IVA 21%", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(formatearMonto(form.montoIVA), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
                                 }
-                                if (i < formulario.ordenesPendientes.lastIndex) {
-                                    HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
-                                }
+                            }
+                            HorizontalDivider()
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("Total", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold))
+                                Text(formatearMonto(form.montoTotal), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary))
                             }
                         }
                     }
                 }
             }
 
-            // ── Artículos ──
-            SeccionLabel("Artículos")
-            Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column {
-                    formulario.articulos.forEachIndexed { i, articulo ->
-                        val cantidad = form.articulosConCantidad.getOrDefault(articulo.id, 0)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(articulo.nombre, style = MaterialTheme.typography.bodyMedium)
-                                Text(
-                                    formatearMonto(articulo.precio),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                IconButton(
-                                    onClick = { onCantidadArticulo(articulo.id, -1) },
-                                    enabled = cantidad > 0,
-                                    modifier = Modifier.size(32.dp),
-                                ) {
-                                    Icon(Icons.Outlined.Remove, contentDescription = "Quitar uno")
-                                }
-                                Text(
-                                    text = "$cantidad",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.padding(horizontal = 4.dp),
-                                )
-                                IconButton(
-                                    onClick = { onCantidadArticulo(articulo.id, +1) },
-                                    modifier = Modifier.size(32.dp),
-                                ) {
-                                    Icon(Icons.Outlined.Add, contentDescription = "Agregar uno")
-                                }
-                            }
-                        }
-                        if (i < formulario.articulos.lastIndex) {
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
-                        }
-                    }
-                }
-            }
-
-            // ── Totales calculados ──
-            if (formulario.montoNeto > 0) {
-                SeccionLabel("Resumen")
-                Surface(
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            // ── Vincular orden (opcional) ─────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SeccionHeader("Vincular orden (opcional)")
+                OrdenVinculadaDropdown(
+                    ordenes = formulario.ordenesFirmadas,
+                    seleccionadoId = form.ordenVinculadaId,
+                    onSeleccion = onOrdenVinculada,
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilaImporte("Neto", formatearMonto(formulario.montoNeto))
-                        HorizontalDivider()
-                        FilaImporte("IVA 21%", formatearMonto(formulario.montoIva))
-                        HorizontalDivider()
-                        FilaImporte(
-                            "Total",
-                            formatearMonto(formulario.montoTotal),
-                            negrita = true,
-                            colorValor = MaterialTheme.colorScheme.primary,
-                        )
+                )
+                val ordenSel = formulario.ordenesFirmadas.find { it.id == form.ordenVinculadaId }
+                if (ordenSel != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(TertiaryContainer, RoundedCornerShape(12.dp))
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = com.grupo.elevapro.ui.theme.Tertiary, modifier = Modifier.padding(top = 2.dp))
+                        Column {
+                            Text("Orden vinculada con firma de conformidad", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium), color = OnTertiaryContainer)
+                            Text("${ordenSel.clienteNombre} · ${ordenSel.fecha}", style = MaterialTheme.typography.labelSmall, color = com.grupo.elevapro.ui.theme.Tertiary)
+                        }
                     }
                 }
             }
-
-            if (form.error != null) {
-                Text(
-                    text = form.error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-
-            FilledPrimaryButton(
-                text = if (form.generando) "Generando…" else "Generar factura",
-                onClick = onGenerar,
-                enabled = form.isFormValid && !form.generando,
-                icon = Icons.Outlined.Receipt,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
-// ─── Componentes locales ────────────────────────────────────────────────────
-
 @Composable
-private fun SeccionLabel(texto: String) {
+private fun SeccionHeader(label: String) {
     Text(
-        text = texto.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
+        text = label,
+        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
 }
 
-// ─── Previews ────────────────────────────────────────────────────────────────
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "GenerarFactura – vacío")
+// ── OrdenVinculadaDropdown ────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun GenerarFacturaVacioPreview() {
-    com.grupo.elevapro.ui.theme.ElevaProTheme {
-        GenerarFacturaContent(
-            formulario = GenerarFacturaUiState.Formulario(
-                form = GenerarFacturaFormState(),
-                clientes = com.grupo.elevapro.data.repository.FakeMockData.clientes,
-                ordenesPendientes = emptyList(),
-                articulos = com.grupo.elevapro.data.repository.FakeMockData.articulos,
-            ),
-            onBack = {},
-            onCliente = { _, _ -> },
-            onTipo = {},
-            onFechaDesde = {},
-            onFechaHasta = {},
-            onToggleOrden = {},
-            onCantidadArticulo = { _, _ -> },
-            onGenerar = {},
+private fun OrdenVinculadaDropdown(
+    ordenes: List<Orden>,
+    seleccionadoId: String,
+    onSeleccion: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expandido by remember { mutableStateOf(false) }
+    val selLabel = ordenes.find { it.id == seleccionadoId }?.let { "${it.numero} · ${it.clienteNombre}" } ?: "Sin vincular"
+
+    ExposedDropdownMenuBox(
+        expanded = expandido,
+        onExpandedChange = { expandido = it },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = selLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Orden de trabajo firmada") },
+            leadingIcon = { Icon(Icons.Outlined.Link, contentDescription = null) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandido) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
         )
+        ExposedDropdownMenu(expanded = expandido, onDismissRequest = { expandido = false }) {
+            DropdownMenuItem(
+                text = { Text("Sin vincular") },
+                onClick = { onSeleccion(""); expandido = false },
+            )
+            ordenes.forEach { orden ->
+                DropdownMenuItem(
+                    text = { Text("${orden.numero} · ${orden.clienteNombre} · ${orden.fecha}") },
+                    onClick = { onSeleccion(orden.id); expandido = false },
+                )
+            }
+        }
     }
 }
 
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "GenerarFactura – con datos y totales")
+// ── TipoPagoDropdown ─────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun GenerarFacturaConDatosPreview() {
-    com.grupo.elevapro.ui.theme.ElevaProTheme {
-        GenerarFacturaContent(
-            formulario = GenerarFacturaUiState.Formulario(
-                form = GenerarFacturaFormState(
-                    clienteId = "11",
-                    clienteNombre = "Cons. Prop. Valentín Gomez 2711",
-                    tipo = "A",
-                    fechaDesde = "01 may 2026",
-                    fechaHasta = "31 may 2026",
-                    articulosConCantidad = mapOf("a1" to 2, "a5" to 4),
-                ),
-                clientes = com.grupo.elevapro.data.repository.FakeMockData.clientes,
-                ordenesPendientes = com.grupo.elevapro.data.repository.FakeMockData.ordenes.take(2),
-                articulos = com.grupo.elevapro.data.repository.FakeMockData.articulos,
-            ),
-            onBack = {},
-            onCliente = { _, _ -> },
-            onTipo = {},
-            onFechaDesde = {},
-            onFechaHasta = {},
-            onToggleOrden = {},
-            onCantidadArticulo = { _, _ -> },
-            onGenerar = {},
+private fun TipoPagoDropdown(
+    seleccionado: String,
+    onSeleccion: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val opciones = listOf("Efectivo", "Transferencia Bancaria", "Cheque", "Tarjeta de Crédito", "Tarjeta de Débito", "Cuenta Corriente")
+    var expandido by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expandido,
+        onExpandedChange = { expandido = it },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = seleccionado,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Tipo de pago *") },
+            leadingIcon = { Icon(Icons.Outlined.CreditCard, contentDescription = null) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandido) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
         )
+        ExposedDropdownMenu(expanded = expandido, onDismissRequest = { expandido = false }) {
+            opciones.forEach { op ->
+                DropdownMenuItem(
+                    text = { Text(op) },
+                    onClick = { onSeleccion(op); expandido = false },
+                )
+            }
+        }
     }
 }
-
