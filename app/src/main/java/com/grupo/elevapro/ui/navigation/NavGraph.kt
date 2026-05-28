@@ -8,6 +8,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.grupo.elevapro.ui.components.PlaceholderScreen
+import com.grupo.elevapro.ui.screen.admin.RolesPermisosScreen
+import com.grupo.elevapro.ui.screen.admin.UsuarioPermisosScreen
+import com.grupo.elevapro.ui.screen.admin.UsuariosScreen
 import com.grupo.elevapro.ui.screen.auth.LoginScreen
 import com.grupo.elevapro.ui.screen.auth.OnboardingScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
@@ -97,14 +100,21 @@ fun NavGraph(
         composable(Screen.Articulos.route) { PlaceholderScreen(titulo = "Artículos") }
 
         // Admin
-        composable(Screen.Usuarios.route) { PlaceholderScreen(titulo = "Usuarios", onBack = { navController.popBackStack() }) }
+        composable(Screen.Usuarios.route) {
+            UsuariosScreen(
+                onEditarPermisos = { id -> navController.navigate(Screen.UsuarioPermisos.build(id)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
         composable(
             route = Screen.UsuarioPermisos.route,
             arguments = listOf(navArgument(Screen.UsuarioPermisos.ARG_ID) { type = NavType.StringType }),
         ) {
-            PlaceholderScreen(titulo = "Permisos de usuario", onBack = { navController.popBackStack() })
+            UsuarioPermisosScreen(onBack = { navController.popBackStack() })
         }
-        composable(Screen.RolesPermisos.route) { PlaceholderScreen(titulo = "Roles y permisos", onBack = { navController.popBackStack() }) }
+        composable(Screen.RolesPermisos.route) {
+            RolesPermisosScreen(onBack = { navController.popBackStack() })
+        }
         composable(Screen.Supervisores.route) { PlaceholderScreen(titulo = "Supervisores", onBack = { navController.popBackStack() }) }
         composable(Screen.Plantillas.route) { PlaceholderScreen(titulo = "Plantillas", onBack = { navController.popBackStack() }) }
         composable(Screen.DatosEmpresa.route) { PlaceholderScreen(titulo = "Datos de empresa", onBack = { navController.popBackStack() }) }
