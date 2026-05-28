@@ -6,18 +6,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.grupo.elevapro.data.model.domain.Usuario
+import com.grupo.elevapro.data.repository.AuthRepository
 import com.grupo.elevapro.ui.components.ElevaProBottomNav
 import com.grupo.elevapro.ui.navigation.NavGraph
 import com.grupo.elevapro.ui.navigation.Screen
-import com.grupo.elevapro.ui.screen.auth.AuthViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.StateFlow
+import javax.inject.Inject
+
+@HiltViewModel
+class AppViewModel @Inject constructor(
+    authRepository: AuthRepository,
+) : ViewModel() {
+    val usuarioActual: StateFlow<Usuario?> = authRepository.usuarioActual
+}
 
 @Composable
 fun ElevaProApp() {
     val navController = rememberNavController()
-    val authVm: AuthViewModel = hiltViewModel()
+    val authVm: AppViewModel = hiltViewModel()
     val usuario by authVm.usuarioActual.collectAsStateWithLifecycle()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
