@@ -13,21 +13,13 @@ import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.Notes
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Receipt
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -47,6 +39,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -136,7 +129,8 @@ class NuevaFacturaViewModel @Inject constructor(
         }
     }
 
-    val _guardado = MutableStateFlow(false)
+    private val _guardado = MutableStateFlow(false)
+    val guardado: StateFlow<Boolean> = _guardado.asStateFlow()
 
     private fun update(block: NuevaFacturaFormState.() -> NuevaFacturaFormState) =
         _form.update { it.block() }
@@ -151,7 +145,7 @@ fun NuevaFacturaScreen(
     viewModel: NuevaFacturaViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
-    val guardado by viewModel._guardado.collectAsStateWithLifecycle()
+    val guardado by viewModel.guardado.collectAsStateWithLifecycle()
 
     LaunchedEffect(guardado) {
         if (guardado) onBack()
@@ -203,16 +197,14 @@ private fun NuevaFacturaContent(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Cliente dropdown — reutiliza el componente de GenerarFactura
-            ClienteDropdownNueva(
+            ClienteDropdown(
                 clientes = formulario.clientes,
                 seleccionadoNombre = form.clienteNombre,
                 onSeleccion = onCliente,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            // Tipo — reutiliza el componente de GenerarFactura
-            TipoDropdownNueva(
+            TipoDropdown(
                 seleccionado = form.tipo,
                 onSeleccion = onTipo,
                 modifier = Modifier.fillMaxWidth(),
@@ -260,61 +252,6 @@ private fun NuevaFacturaContent(
                 icon = Icons.Outlined.Receipt,
                 modifier = Modifier.fillMaxWidth(),
             )
-        }
-    }
-}
-
-// Wrappers locales — delegan a los componentes de GenerarFactura
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ClienteDropdownNueva(
-    clientes: List<Cliente>,
-    seleccionadoNombre: String,
-    onSeleccion: (String, String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var expandido by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expandido, onExpandedChange = { expandido = it }, modifier = modifier) {
-        OutlinedTextField(
-            value = seleccionadoNombre,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Cliente *") },
-            leadingIcon = { androidx.compose.material3.Icon(Icons.Outlined.People, contentDescription = null) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandido) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = expandido, onDismissRequest = { expandido = false }) {
-            clientes.forEach { c ->
-                DropdownMenuItem(text = { Text(c.nombre) }, onClick = { onSeleccion(c.id, c.nombre); expandido = false })
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TipoDropdownNueva(
-    seleccionado: String,
-    onSeleccion: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val tipos = listOf("A", "B", "C")
-    var expandido by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expandido, onExpandedChange = { expandido = it }, modifier = modifier) {
-        OutlinedTextField(
-            value = if (seleccionado.isNotBlank()) "Factura $seleccionado" else "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Tipo de factura *") },
-            leadingIcon = { androidx.compose.material3.Icon(Icons.Outlined.Receipt, contentDescription = null) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandido) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = expandido, onDismissRequest = { expandido = false }) {
-            tipos.forEach { t ->
-                DropdownMenuItem(text = { Text("Factura $t") }, onClick = { onSeleccion(t); expandido = false })
-            }
         }
     }
 }
