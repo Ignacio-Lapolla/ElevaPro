@@ -11,6 +11,8 @@ import com.grupo.elevapro.ui.components.PlaceholderScreen
 import com.grupo.elevapro.ui.screen.auth.LoginScreen
 import com.grupo.elevapro.ui.screen.auth.OnboardingScreen
 import com.grupo.elevapro.ui.screen.clientes.AgregarClienteScreen
+import com.grupo.elevapro.ui.screen.facturacion.FacturaDetalleScreen
+import com.grupo.elevapro.ui.screen.facturacion.FacturacionScreen
 import com.grupo.elevapro.ui.screen.clientes.ClienteDetalleScreen
 import com.grupo.elevapro.ui.screen.clientes.ClientesScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
@@ -91,12 +93,20 @@ fun NavGraph(
         }
 
         // Facturación
-        composable(Screen.Facturacion.route) { PlaceholderScreen(titulo = "Facturación") }
+        composable(Screen.Facturacion.route) {
+            FacturacionScreen(
+                onFacturaClick = { id -> navController.navigate(Screen.FacturaDetalle.build(id)) },
+                onGenerarFactura = { navController.navigate(Screen.GenerarFactura.route) },
+            )
+        }
         composable(
             route = Screen.FacturaDetalle.route,
             arguments = listOf(navArgument(Screen.FacturaDetalle.ARG_ID) { type = NavType.StringType }),
         ) {
-            PlaceholderScreen(titulo = "Detalle Factura", onBack = { navController.popBackStack() })
+            FacturaDetalleScreen(
+                onBack = { navController.popBackStack() },
+                onOrdenClick = { id -> navController.navigate(Screen.OrdenDetalle.build(id)) },
+            )
         }
         composable(Screen.GenerarFactura.route) {
             PlaceholderScreen(titulo = "Generar Factura", onBack = { navController.popBackStack() })
