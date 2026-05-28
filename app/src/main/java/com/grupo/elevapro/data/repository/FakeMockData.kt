@@ -2,10 +2,13 @@ package com.grupo.elevapro.data.repository
 
 import com.grupo.elevapro.data.model.domain.Articulo
 import com.grupo.elevapro.data.model.domain.Cliente
+import com.grupo.elevapro.data.model.domain.CondicionIva
+import com.grupo.elevapro.data.model.domain.Empresa
 import com.grupo.elevapro.data.model.domain.Especialidad
 import com.grupo.elevapro.data.model.domain.EstadoFactura
 import com.grupo.elevapro.data.model.domain.Factura
 import com.grupo.elevapro.data.model.domain.Orden
+import com.grupo.elevapro.data.model.domain.Permiso
 import com.grupo.elevapro.data.model.domain.Plantilla
 import com.grupo.elevapro.data.model.domain.Rol
 import com.grupo.elevapro.data.model.domain.Supervisor
@@ -141,10 +144,24 @@ object FakeMockData {
         Usuario("u5", "Diego Ramírez", "admin.dramirez", Rol.ADMINISTRADOR, "123", "+54 11 4123-5555", null),
     )
 
-    /**
-     * Busca un usuario mock por email/handle escrito (prefijo o coincidencia exacta).
-     * Devuelve null si no hay match — el LoginViewModel decide qué hacer.
-     */
+    val empresa = Empresa(
+        id = "e1",
+        razonSocial = "ElevaPro S.R.L.",
+        cuit = "30-71234567-0",
+        direccion = "Av. Corrientes 1234, CABA",
+        telefono = "+54 11 5000-1234",
+        email = "admin@elevapro.com.ar",
+        condicionIva = CondicionIva.RESPONSABLE_INSCRIPTO,
+    )
+
+    val permisos: Map<String, Set<Permiso>> = mapOf(
+        "u1" to setOf(Permiso.VER_ORDENES, Permiso.CREAR_ORDENES, Permiso.FIRMAR_ORDENES, Permiso.VER_CLIENTES),
+        "u2" to setOf(Permiso.VER_ORDENES, Permiso.CREAR_ORDENES, Permiso.FIRMAR_ORDENES, Permiso.VER_CLIENTES),
+        "u3" to setOf(Permiso.VER_ORDENES, Permiso.CREAR_ORDENES, Permiso.FIRMAR_ORDENES, Permiso.VER_CLIENTES),
+        "u4" to Permiso.entries.toSet(),
+        "u5" to Permiso.entries.toSet(),
+    )
+
     fun usuarioPorEmail(email: String): Usuario? {
         if (email.isBlank()) return null
         val normalizado = email.trim().lowercase()
