@@ -32,16 +32,20 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import com.grupo.elevapro.data.model.domain.Permiso
 import com.grupo.elevapro.data.model.domain.Rol
-import com.grupo.elevapro.data.model.domain.permisosDefault
+import com.grupo.elevapro.data.repository.PermisosRepository
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.FilledPrimaryButton
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface RolesPermisosUiState {
@@ -54,36 +58,48 @@ sealed interface RolesPermisosUiState {
 }
 
 @HiltViewModel
-class RolesPermisosViewModel @Inject constructor() : ViewModel() {
+class RolesPermisosViewModel @Inject constructor(
+    private val permisosRepository: PermisosRepository,
+) : ViewModel() {
 
-    private val _estado = MutableStateFlow<RolesPermisosUiState>(
+    private val _tabSeleccionado  = MutableStateFlow(Rol.ADMINISTRADOR)
+    private val _permisosEditados = MutableStateFlow<Map<Rol, Set<Permiso>>?>(null)
+
+    val estado: StateFlow<RolesPermisosUiState> = combine(
+        permisosRepository.observarDefaultsRol(Rol.ADMINISTRADOR),
+        permisosRepository.observarDefaultsRol(Rol.OPERATIVO),
+        _tabSeleccionado,
+        _permisosEditados,
+    ) { admin, operativo, tab, editados ->
+        val base = mapOf(Rol.ADMINISTRADOR to admin, Rol.OPERATIVO to operativo)
         RolesPermisosUiState.Success(
-            tabSeleccionado = Rol.ADMINISTRADOR,
-            permisosEditados = mapOf(
-                Rol.ADMINISTRADOR to Rol.ADMINISTRADOR.permisosDefault,
-                Rol.OPERATIVO     to Rol.OPERATIVO.permisosDefault,
-            ),
-        )
-    )
-    val estado: StateFlow<RolesPermisosUiState> = _estado.asStateFlow()
+            tabSeleccionado  = tab,
+            permisosEditados = editados ?: base,
+        ) as RolesPermisosUiState
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RolesPermisosUiState.Loading)
 
     private val _plantillaGuardada = MutableStateFlow(false)
     val plantillaGuardada: StateFlow<Boolean> = _plantillaGuardada.asStateFlow()
 
-    fun onTab(rol: Rol) {
-        _estado.update { s -> (s as? RolesPermisosUiState.Success)?.copy(tabSeleccionado = rol) ?: s }
-    }
+    fun onTab(rol: Rol) { _tabSeleccionado.value = rol }
 
     fun togglePermiso(rol: Rol, permiso: Permiso) {
-        _estado.update { s ->
-            val success = s as? RolesPermisosUiState.Success ?: return@update s
-            val actual = success.permisosEditados[rol] ?: emptySet()
-            val nuevo  = if (permiso in actual) actual - permiso else actual + permiso
-            success.copy(permisosEditados = success.permisosEditados + (rol to nuevo))
-        }
+        val s = estado.value as? RolesPermisosUiState.Success ?: return
+        val actual = s.permisosEditados[rol] ?: emptySet()
+        val nuevo  = if (permiso in actual) actual - permiso else actual + permiso
+        _permisosEditados.value = s.permisosEditados + (rol to nuevo)
     }
 
-    fun guardarPlantilla() { _plantillaGuardada.value = true }
+    fun guardarPlantilla() {
+        val editados = _permisosEditados.value
+        viewModelScope.launch {
+            editados?.forEach { (rol, permisos) ->
+                permisosRepository.actualizarDefaultsRol(rol, permisos)
+            }
+            _permisosEditados.value = null
+            _plantillaGuardada.value = true
+        }
+    }
 
     fun onGuardadoHandled() { _plantillaGuardada.value = false }
 }
