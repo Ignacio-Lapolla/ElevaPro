@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -51,6 +52,7 @@ import com.grupo.elevapro.data.repository.FakeMockData
 import com.grupo.elevapro.ui.components.ElevaProTextField
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.FilledPrimaryButton
+import com.grupo.elevapro.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -82,13 +84,41 @@ sealed interface AgregarClienteUiState {
 
 @HiltViewModel
 class AgregarClienteViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val repository: ClienteRepository,
 ) : ViewModel() {
+
+    private val clienteId: String? = savedStateHandle[Screen.AgregarCliente.ARG_ID]
+    val esEdicion: Boolean get() = clienteId != null
 
     private val _estado = MutableStateFlow<AgregarClienteUiState>(AgregarClienteUiState.Formulario())
     val estado: StateFlow<AgregarClienteUiState> = _estado.asStateFlow()
 
     val supervisores = FakeMockData.supervisores
+
+    init {
+        if (clienteId != null) {
+            viewModelScope.launch {
+                val cliente = repository.obtenerPorId(clienteId)
+                if (cliente != null) {
+                    val supervisorNombre = cliente.supervisorId
+                        ?.let { repository.obtenerSupervisorNombre(it) } ?: ""
+                    _estado.value = AgregarClienteUiState.Formulario(
+                        AgregarClienteFormState(
+                            nombre = cliente.nombre,
+                            telefono = cliente.telefono,
+                            email = cliente.email,
+                            direccion = cliente.direccion,
+                            cuit = cliente.cuit,
+                            supervisorId = cliente.supervisorId,
+                            supervisorNombre = supervisorNombre,
+                            notas = cliente.notas ?: "",
+                        )
+                    )
+                }
+            }
+        }
+    }
 
     fun onNombre(v: String) = updateForm { copy(nombre = v) }
     fun onTelefono(v: String) = updateForm { copy(telefono = v) }
@@ -104,18 +134,17 @@ class AgregarClienteViewModel @Inject constructor(
         viewModelScope.launch {
             updateForm { copy(guardando = true, error = null) }
             try {
-                repository.agregar(
-                    Cliente(
-                        id = UUID.randomUUID().toString(),
-                        nombre = formulario.nombre.trim(),
-                        direccion = formulario.direccion.trim(),
-                        telefono = formulario.telefono.trim(),
-                        email = formulario.email.trim(),
-                        cuit = formulario.cuit,
-                        notas = formulario.notas.trim().ifBlank { null },
-                        supervisorId = formulario.supervisorId,
-                    )
+                val cliente = Cliente(
+                    id = clienteId ?: UUID.randomUUID().toString(),
+                    nombre = formulario.nombre.trim(),
+                    direccion = formulario.direccion.trim(),
+                    telefono = formulario.telefono.trim(),
+                    email = formulario.email.trim(),
+                    cuit = formulario.cuit,
+                    notas = formulario.notas.trim().ifBlank { null },
+                    supervisorId = formulario.supervisorId,
                 )
+                if (esEdicion) repository.actualizar(cliente) else repository.agregar(cliente)
                 _estado.value = AgregarClienteUiState.Guardado
             } catch (e: Exception) {
                 updateForm { copy(guardando = false, error = "No se pudo guardar el cliente") }
@@ -139,15 +168,20 @@ fun AgregarClienteScreen(
     viewModel: AgregarClienteViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
+    val guardado = estado is AgregarClienteUiState.Guardado
 
-    LaunchedEffect(estado) {
-        if (estado is AgregarClienteUiState.Guardado) onBack()
+    LaunchedEffect(guardado) {
+        if (guardado) onBack()
     }
 
     val form = (estado as? AgregarClienteUiState.Formulario)?.form ?: AgregarClienteFormState()
+    val titulo = if (viewModel.esEdicion) "Editar cliente" else "Nuevo cliente"
+    val textoBoton = if (viewModel.esEdicion) "Guardar cambios" else "Agregar cliente"
 
     AgregarClienteContent(
         form = form,
+        titulo = titulo,
+        textoBoton = textoBoton,
         supervisores = viewModel.supervisores,
         onBack = onBack,
         onNombre = viewModel::onNombre,
@@ -166,6 +200,8 @@ fun AgregarClienteScreen(
 @Composable
 private fun AgregarClienteContent(
     form: AgregarClienteFormState,
+    titulo: String,
+    textoBoton: String,
     supervisores: List<com.grupo.elevapro.data.model.domain.Supervisor>,
     onBack: () -> Unit,
     onNombre: (String) -> Unit,
@@ -181,7 +217,7 @@ private fun AgregarClienteContent(
     Scaffold(
         topBar = {
             ElevaProTopAppBar(
-                titulo = "Nuevo cliente",
+                titulo = titulo,
                 onBack = onBack,
                 acciones = {
                     IconButton(onClick = onGuardar, enabled = form.isFormValid && !form.guardando) {
@@ -266,7 +302,7 @@ private fun AgregarClienteContent(
             }
 
             FilledPrimaryButton(
-                text = if (form.guardando) "Guardando…" else "Agregar cliente",
+                text = if (form.guardando) "Guardando…" else textoBoton,
                 onClick = onGuardar,
                 enabled = form.isFormValid && !form.guardando,
                 modifier = Modifier.fillMaxWidth(),
@@ -333,6 +369,8 @@ private fun AgregarClienteVacioPreview() {
     com.grupo.elevapro.ui.theme.ElevaProTheme {
         AgregarClienteContent(
             form = AgregarClienteFormState(),
+            titulo = "Nuevo cliente",
+            textoBoton = "Agregar cliente",
             supervisores = com.grupo.elevapro.data.repository.FakeMockData.supervisores,
             onBack = {},
             onNombre = {},
@@ -347,9 +385,9 @@ private fun AgregarClienteVacioPreview() {
     }
 }
 
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "AgregarCliente – formulario válido")
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "AgregarCliente – edición")
 @Composable
-private fun AgregarClienteValidoPreview() {
+private fun AgregarClienteEdicionPreview() {
     com.grupo.elevapro.ui.theme.ElevaProTheme {
         AgregarClienteContent(
             form = AgregarClienteFormState(
@@ -361,6 +399,8 @@ private fun AgregarClienteValidoPreview() {
                 supervisorNombre = "Carlos Méndez",
                 notas = "Ascensor modelo 2010, revisión semestral.",
             ),
+            titulo = "Editar cliente",
+            textoBoton = "Guardar cambios",
             supervisores = com.grupo.elevapro.data.repository.FakeMockData.supervisores,
             onBack = {},
             onNombre = {},

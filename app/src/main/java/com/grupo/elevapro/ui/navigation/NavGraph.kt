@@ -77,7 +77,7 @@ fun NavGraph(
         composable(Screen.Clientes.route) {
             ClientesScreen(
                 onClienteClick = { id -> navController.navigate(Screen.ClienteDetalle.build(id)) },
-                onAgregarCliente = { navController.navigate(Screen.AgregarCliente.route) },
+                onAgregarCliente = { navController.navigate(Screen.AgregarCliente.route_base) },
             )
         }
         composable(
@@ -86,11 +86,20 @@ fun NavGraph(
         ) {
             ClienteDetalleScreen(
                 onBack = { navController.popBackStack() },
-                onEditar = { navController.navigate(Screen.AgregarCliente.route) },
+                onEditar = { id -> navController.navigate(Screen.AgregarCliente.build(id)) },
                 onOrdenClick = { id -> navController.navigate(Screen.OrdenDetalle.build(id)) },
             )
         }
-        composable(Screen.AgregarCliente.route) {
+        composable(
+            route = Screen.AgregarCliente.route,
+            arguments = listOf(
+                navArgument(Screen.AgregarCliente.ARG_ID) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+        ) {
             AgregarClienteScreen(onBack = { navController.popBackStack() })
         }
 
