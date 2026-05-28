@@ -1,6 +1,8 @@
 package com.grupo.elevapro.di
 
+import com.grupo.elevapro.data.repository.ArticulosRepository
 import com.grupo.elevapro.data.repository.AuthRepository
+import com.grupo.elevapro.data.repository.FakeArticulosRepository
 import com.grupo.elevapro.data.repository.FakeAuthRepository
 import com.grupo.elevapro.data.repository.FakeOrdenesRepository
 import com.grupo.elevapro.data.repository.OrdenesRepository
@@ -21,4 +23,8 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindOrdenesRepository(impl: FakeOrdenesRepository): OrdenesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindArticulosRepository(impl: FakeArticulosRepository): ArticulosRepository
 }

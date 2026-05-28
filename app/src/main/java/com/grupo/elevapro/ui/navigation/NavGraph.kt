@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.grupo.elevapro.ui.components.PlaceholderScreen
+import com.grupo.elevapro.ui.screen.articulos.ArticulosScreen
 import com.grupo.elevapro.ui.screen.auth.LoginScreen
 import com.grupo.elevapro.ui.screen.auth.OnboardingScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
@@ -94,7 +95,7 @@ fun NavGraph(
         }
 
         // Artículos
-        composable(Screen.Articulos.route) { PlaceholderScreen(titulo = "Artículos") }
+        composable(Screen.Articulos.route) { ArticulosScreen() }
 
         // Admin
         composable(Screen.Usuarios.route) { PlaceholderScreen(titulo = "Usuarios", onBack = { navController.popBackStack() }) }
