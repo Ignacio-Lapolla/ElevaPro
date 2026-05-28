@@ -8,9 +8,21 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.grupo.elevapro.ui.components.PlaceholderScreen
+import com.grupo.elevapro.ui.screen.admin.DatosEmpresaScreen
+import com.grupo.elevapro.ui.screen.admin.PlantillasScreen
+import com.grupo.elevapro.ui.screen.admin.RolesPermisosScreen
+import com.grupo.elevapro.ui.screen.admin.SupervisoresScreen
+import com.grupo.elevapro.ui.screen.admin.UsuarioPermisosScreen
+import com.grupo.elevapro.ui.screen.admin.UsuariosScreen
 import com.grupo.elevapro.ui.screen.articulos.ArticulosScreen
 import com.grupo.elevapro.ui.screen.auth.LoginScreen
 import com.grupo.elevapro.ui.screen.auth.OnboardingScreen
+import com.grupo.elevapro.ui.screen.clientes.AgregarClienteScreen
+import com.grupo.elevapro.ui.screen.clientes.ClientesScreen
+import com.grupo.elevapro.ui.screen.facturacion.FacturaDetalleScreen
+import com.grupo.elevapro.ui.screen.facturacion.FacturacionScreen
+import com.grupo.elevapro.ui.screen.facturacion.GenerarFacturaScreen
+import com.grupo.elevapro.ui.screen.facturacion.NuevaFacturaScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
 import com.grupo.elevapro.ui.screen.perfil.AyudaSoporteScreen
 import com.grupo.elevapro.ui.screen.perfil.ConfiguracionScreen
@@ -23,6 +35,7 @@ fun NavGraph(
     navController: NavHostController,
     startDestination: String,
     modifier: Modifier = Modifier,
+    onOpenDrawer: () -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -54,6 +67,7 @@ fun NavGraph(
             OrdenesScreen(
                 onOrdenClick = { id -> navController.navigate(Screen.OrdenDetalle.build(id)) },
                 onNuevaOrden = { navController.navigate(Screen.NuevaOrden.route) },
+                onOpenDrawer = onOpenDrawer,
             )
         }
         composable(
@@ -73,53 +87,92 @@ fun NavGraph(
         }
 
         // Clientes
-        composable(Screen.Clientes.route) { PlaceholderScreen(titulo = "Clientes") }
-        composable(
-            route = Screen.ClienteDetalle.route,
-            arguments = listOf(navArgument(Screen.ClienteDetalle.ARG_ID) { type = NavType.StringType }),
-        ) {
-            PlaceholderScreen(titulo = "Detalle Cliente", onBack = { navController.popBackStack() })
+        composable(Screen.Clientes.route) {
+            ClientesScreen(
+                onClienteClick = { id -> navController.navigate(Screen.AgregarCliente.build(id)) },
+                onAgregarCliente = { navController.navigate(Screen.AgregarCliente.route_base) },
+                onOpenDrawer = onOpenDrawer,
+            )
         }
-        composable(Screen.AgregarCliente.route) {
-            PlaceholderScreen(titulo = "Nuevo Cliente", onBack = { navController.popBackStack() })
+        composable(
+            route = Screen.AgregarCliente.route,
+            arguments = listOf(
+                navArgument(Screen.AgregarCliente.ARG_ID) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+        ) {
+            AgregarClienteScreen(onBack = { navController.popBackStack() })
         }
 
         // Facturación
-        composable(Screen.Facturacion.route) { PlaceholderScreen(titulo = "Facturación") }
+        composable(Screen.Facturacion.route) {
+            FacturacionScreen(
+                onFacturaClick = { id -> navController.navigate(Screen.FacturaDetalle.build(id)) },
+                onGenerarFactura = { navController.navigate(Screen.GenerarFactura.route) },
+                onOpenDrawer = onOpenDrawer,
+            )
+        }
         composable(
             route = Screen.FacturaDetalle.route,
             arguments = listOf(navArgument(Screen.FacturaDetalle.ARG_ID) { type = NavType.StringType }),
         ) {
-            PlaceholderScreen(titulo = "Detalle Factura", onBack = { navController.popBackStack() })
+            FacturaDetalleScreen(
+                onBack = { navController.popBackStack() },
+                onOrdenClick = { id -> navController.navigate(Screen.OrdenDetalle.build(id)) },
+            )
         }
         composable(Screen.GenerarFactura.route) {
-            PlaceholderScreen(titulo = "Generar Factura", onBack = { navController.popBackStack() })
+            GenerarFacturaScreen(onBack = { navController.popBackStack() })
         }
         composable(Screen.NuevaFactura.route) {
-            PlaceholderScreen(titulo = "Nueva Factura", onBack = { navController.popBackStack() })
+            NuevaFacturaScreen(onBack = { navController.popBackStack() })
         }
 
         // Artículos
         composable(Screen.Articulos.route) { ArticulosScreen() }
 
         // Admin
-        composable(Screen.Usuarios.route) { PlaceholderScreen(titulo = "Usuarios", onBack = { navController.popBackStack() }) }
+        composable(Screen.Usuarios.route) {
+            UsuariosScreen(
+                onEditarPermisos = { id -> navController.navigate(Screen.UsuarioPermisos.build(id)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
         composable(
             route = Screen.UsuarioPermisos.route,
             arguments = listOf(navArgument(Screen.UsuarioPermisos.ARG_ID) { type = NavType.StringType }),
         ) {
-            PlaceholderScreen(titulo = "Permisos de usuario", onBack = { navController.popBackStack() })
+            UsuarioPermisosScreen(onBack = { navController.popBackStack() })
         }
-        composable(Screen.RolesPermisos.route) { PlaceholderScreen(titulo = "Roles y permisos", onBack = { navController.popBackStack() }) }
-        composable(Screen.Supervisores.route) { PlaceholderScreen(titulo = "Supervisores", onBack = { navController.popBackStack() }) }
-        composable(Screen.Plantillas.route) { PlaceholderScreen(titulo = "Plantillas", onBack = { navController.popBackStack() }) }
-        composable(Screen.DatosEmpresa.route) { PlaceholderScreen(titulo = "Datos de empresa", onBack = { navController.popBackStack() }) }
+        composable(Screen.RolesPermisos.route) {
+            RolesPermisosScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Supervisores.route) {
+            SupervisoresScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Plantillas.route) {
+            PlantillasScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.DatosEmpresa.route) {
+            DatosEmpresaScreen(onBack = { navController.popBackStack() })
+        }
 
         // Perfil
         composable(Screen.Perfil.route) {
             PerfilScreen(
-                onNavTo = { navController.navigate(it) },
-                onLogout = {
+                onSupervisores   = { navController.navigate(Screen.Supervisores.route) },
+                onPlantillas     = { navController.navigate(Screen.Plantillas.route) },
+                onDatosEmpresa   = { navController.navigate(Screen.DatosEmpresa.route) },
+                onUsuarios       = { navController.navigate(Screen.Usuarios.route) },
+                onRolesPermisos  = { navController.navigate(Screen.RolesPermisos.route) },
+                onNotificaciones = { navController.navigate(Screen.Notificaciones.route) },
+                onConfiguracion  = { navController.navigate(Screen.Configuracion.route) },
+                onAyudaSoporte   = { navController.navigate(Screen.AyudaSoporte.route) },
+                onOpciones       = { navController.navigate(Screen.Opciones.route) },
+                onLogout         = {
                     navController.navigate(Screen.Onboarding.route) {
                         popUpTo(0) { inclusive = true }
                     }
