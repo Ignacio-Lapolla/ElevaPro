@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.grupo.elevapro.ui.components.SectionTitle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -281,16 +282,6 @@ private fun FaqAccordion(
             )
         }
     }
-}
-
-@Composable
-private fun SectionTitle(label: String) {
-    Text(
-        text = label.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 4.dp),
-    )
 }
 
 @Composable

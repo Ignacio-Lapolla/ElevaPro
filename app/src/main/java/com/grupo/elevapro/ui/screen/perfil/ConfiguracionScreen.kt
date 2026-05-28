@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.grupo.elevapro.ui.components.SectionTitle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -232,16 +233,6 @@ private fun ConfiguracionContent(
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-@Composable
-private fun SectionTitle(label: String) {
-    Text(
-        text = label.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 4.dp),
-    )
-}
 
 @Composable
 private fun SwitchListItem(

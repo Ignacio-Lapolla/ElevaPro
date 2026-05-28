@@ -175,3 +175,13 @@ fun FilterChipBar(
         }
     }
 }
+
+@Composable
+fun SectionTitle(label: String, modifier: Modifier = Modifier) {
+    Text(
+        text = label.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier.padding(horizontal = 4.dp),
+    )
+}
