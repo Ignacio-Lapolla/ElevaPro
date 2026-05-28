@@ -13,6 +13,7 @@ import com.grupo.elevapro.ui.screen.auth.OnboardingScreen
 import com.grupo.elevapro.ui.screen.clientes.AgregarClienteScreen
 import com.grupo.elevapro.ui.screen.facturacion.FacturaDetalleScreen
 import com.grupo.elevapro.ui.screen.facturacion.FacturacionScreen
+import com.grupo.elevapro.ui.screen.facturacion.GenerarFacturaScreen
 import com.grupo.elevapro.ui.screen.clientes.ClienteDetalleScreen
 import com.grupo.elevapro.ui.screen.clientes.ClientesScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
@@ -109,7 +110,7 @@ fun NavGraph(
             )
         }
         composable(Screen.GenerarFactura.route) {
-            PlaceholderScreen(titulo = "Generar Factura", onBack = { navController.popBackStack() })
+            GenerarFacturaScreen(onBack = { navController.popBackStack() })
         }
         composable(Screen.NuevaFactura.route) {
             PlaceholderScreen(titulo = "Nueva Factura", onBack = { navController.popBackStack() })
