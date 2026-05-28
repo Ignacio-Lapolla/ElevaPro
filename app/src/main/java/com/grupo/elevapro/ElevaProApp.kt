@@ -17,6 +17,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.grupo.elevapro.data.model.domain.Rol
 import com.grupo.elevapro.data.model.domain.Usuario
 import com.grupo.elevapro.data.repository.AuthRepository
 import com.grupo.elevapro.ui.components.ElevaProBottomNav
@@ -44,13 +45,21 @@ fun ElevaProApp() {
     val usuario by authVm.usuarioActual.collectAsStateWithLifecycle()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
-    val rutasConBottomNav = setOf(
-        Screen.Ordenes.route,
-        Screen.Clientes.route,
-        Screen.Articulos.route,
-        Screen.Facturacion.route,
-        Screen.Perfil.route,
-    )
+    val rutasConBottomNav = when (usuario?.rol) {
+        Rol.ADMINISTRADOR -> setOf(
+            Screen.Ordenes.route,
+            Screen.Clientes.route,
+            Screen.Facturacion.route,
+            Screen.Perfil.route,
+        )
+        Rol.OPERATIVO -> setOf(
+            Screen.Ordenes.route,
+            Screen.Clientes.route,
+            Screen.Articulos.route,
+            Screen.Perfil.route,
+        )
+        null -> emptySet()
+    }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
