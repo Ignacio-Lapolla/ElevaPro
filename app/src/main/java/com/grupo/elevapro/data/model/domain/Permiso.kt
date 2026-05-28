@@ -7,4 +7,11 @@ enum class Permiso {
     GESTIONAR_USUARIOS, GESTIONAR_EMPRESA,
 }
 
-data class PermisosUsuario(val usuarioId: String, val permisos: Set<Permiso>)
+val Rol.permisosDefault: Set<Permiso>
+    get() = when (this) {
+        Rol.OPERATIVO -> setOf(
+            Permiso.VER_ORDENES, Permiso.CREAR_ORDENES, Permiso.FIRMAR_ORDENES,
+            Permiso.VER_CLIENTES,
+        )
+        Rol.ADMINISTRADOR -> Permiso.entries.toSet()
+    }

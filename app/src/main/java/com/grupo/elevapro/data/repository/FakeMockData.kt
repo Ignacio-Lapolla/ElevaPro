@@ -158,8 +158,8 @@ object FakeMockData {
         "u1" to setOf(Permiso.VER_ORDENES, Permiso.CREAR_ORDENES, Permiso.FIRMAR_ORDENES, Permiso.VER_CLIENTES),
         "u2" to setOf(Permiso.VER_ORDENES, Permiso.CREAR_ORDENES, Permiso.FIRMAR_ORDENES, Permiso.VER_CLIENTES),
         "u3" to setOf(Permiso.VER_ORDENES, Permiso.CREAR_ORDENES, Permiso.FIRMAR_ORDENES, Permiso.VER_CLIENTES),
-        "u4" to enumValues<Permiso>().toSet(),
-        "u5" to enumValues<Permiso>().toSet(),
+        "u4" to Permiso.entries.toSet(),
+        "u5" to Permiso.entries.toSet(),
     )
 
     fun usuarioPorEmail(email: String): Usuario? {
