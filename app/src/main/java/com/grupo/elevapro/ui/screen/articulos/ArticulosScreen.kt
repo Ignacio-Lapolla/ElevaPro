@@ -122,6 +122,11 @@ class ArticulosViewModel @Inject constructor(
         emit(ArticulosUiState.Error(e.message ?: "Error inesperado"))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ArticulosUiState.Loading)
 
+    init {
+        // El repositorio reactivo provee los artículos al suscribirse.
+        // Para H2: aquí se llamaría a sincronizar() contra el backend.
+    }
+
     fun onBusqueda(q: String) { busqueda.value = q }
     fun onCategoria(c: String?) { categoria.value = c }
     fun onFormChange(form: NuevoArticuloForm) { _form.value = form }

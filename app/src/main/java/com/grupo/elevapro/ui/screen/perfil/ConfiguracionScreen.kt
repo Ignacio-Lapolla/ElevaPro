@@ -70,6 +70,10 @@ class ConfiguracionViewModel @Inject constructor() : ViewModel() {
     private val _estado = MutableStateFlow(ConfiguracionUiState())
     val estado: StateFlow<ConfiguracionUiState> = _estado.asStateFlow()
 
+    init {
+        // Para H2: aquí se cargarán las preferencias del usuario desde el backend.
+    }
+
     fun onModoOscuro(value: Boolean) { _estado.update { it.copy(modoOscuro = value) } }
     fun onNotificacionesPush(value: Boolean) { _estado.update { it.copy(notificacionesPush = value) } }
     fun onSincronizacionAuto(value: Boolean) { _estado.update { it.copy(sincronizacionAuto = value) } }
