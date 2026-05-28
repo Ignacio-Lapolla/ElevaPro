@@ -1,11 +1,16 @@
 package com.grupo.elevapro.ui.screen.clientes
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,13 +40,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.grupo.elevapro.ui.theme.Primary
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -74,7 +84,7 @@ data class AgregarClienteFormState(
     val guardando: Boolean = false,
     val error: String? = null,
 ) {
-    val isFormValid: Boolean get() = nombre.isNotBlank() && telefono.isNotBlank()
+    val isFormValid: Boolean get() = nombre.isNotBlank()
 }
 
 sealed interface AgregarClienteUiState {
@@ -168,19 +178,19 @@ fun AgregarClienteScreen(
     viewModel: AgregarClienteViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
-    val guardado = estado is AgregarClienteUiState.Guardado
 
-    LaunchedEffect(guardado) {
-        if (guardado) onBack()
+    LaunchedEffect(estado) {
+        if (estado is AgregarClienteUiState.Guardado) onBack()
     }
 
     val form = (estado as? AgregarClienteUiState.Formulario)?.form ?: AgregarClienteFormState()
-    val titulo = if (viewModel.esEdicion) "Editar cliente" else "Nuevo cliente"
+    val titulo = if (viewModel.esEdicion) "Detalle del cliente" else "Nuevo cliente"
     val textoBoton = if (viewModel.esEdicion) "Guardar cambios" else "Agregar cliente"
 
     AgregarClienteContent(
         form = form,
         titulo = titulo,
+        esEdicion = viewModel.esEdicion,
         textoBoton = textoBoton,
         supervisores = viewModel.supervisores,
         onBack = onBack,
@@ -201,6 +211,7 @@ fun AgregarClienteScreen(
 private fun AgregarClienteContent(
     form: AgregarClienteFormState,
     titulo: String,
+    esEdicion: Boolean,
     textoBoton: String,
     supervisores: List<com.grupo.elevapro.data.model.domain.Supervisor>,
     onBack: () -> Unit,
@@ -226,16 +237,93 @@ private fun AgregarClienteContent(
                 },
             )
         },
+        bottomBar = {
+            androidx.compose.material3.Surface(
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    if (form.error != null) {
+                        Text(
+                            text = form.error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        )
+                    }
+                    FilledPrimaryButton(
+                        text = if (form.guardando) "Guardando…" else textoBoton,
+                        onClick = onGuardar,
+                        enabled = form.isFormValid && !form.guardando,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
         modifier = modifier,
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .verticalScroll(rememberScrollState()),
         ) {
+            // Hero banner — solo en modo edición cuando el nombre ya está cargado
+            if (esEdicion && form.nombre.isNotBlank()) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(Primary, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = iniciales(form.nombre),
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = form.nombre,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                            if (form.direccion.isNotBlank()) {
+                                Text(
+                                    text = form.direccion,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+            SupervisorDropdown(
+                supervisores = supervisores,
+                seleccionadoNombre = form.supervisorNombre,
+                onSeleccion = onSupervisor,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             ElevaProTextField(
                 value = form.nombre,
                 onValueChange = onNombre,
@@ -247,23 +335,15 @@ private fun AgregarClienteContent(
             ElevaProTextField(
                 value = form.telefono,
                 onValueChange = onTelefono,
-                label = "Teléfono *",
+                label = "Teléfono",
                 leadingIcon = Icons.Outlined.Phone,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             )
 
             ElevaProTextField(
-                value = form.email,
-                onValueChange = onEmail,
-                label = "E-mail (opcional)",
-                leadingIcon = Icons.Outlined.Email,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            )
-
-            ElevaProTextField(
                 value = form.direccion,
                 onValueChange = onDireccion,
-                label = "Dirección (opcional)",
+                label = "Dirección",
                 leadingIcon = Icons.Outlined.LocationOn,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
             )
@@ -271,42 +351,29 @@ private fun AgregarClienteContent(
             ElevaProTextField(
                 value = form.cuit,
                 onValueChange = onCuit,
-                label = "NIF / CUIT (opcional)",
+                label = "NIF / CUIT",
                 leadingIcon = Icons.Outlined.Key,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 visualTransformation = CuitVisualTransformation,
             )
 
-            SupervisorDropdown(
-                supervisores = supervisores,
-                seleccionadoNombre = form.supervisorNombre,
-                onSeleccion = onSupervisor,
-                modifier = Modifier.fillMaxWidth(),
+            ElevaProTextField(
+                value = form.email,
+                onValueChange = onEmail,
+                label = "E-mail",
+                leadingIcon = Icons.Outlined.Email,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             )
 
             ElevaProTextField(
                 value = form.notas,
                 onValueChange = onNotas,
-                label = "Notas (opcional)",
+                label = "Notas",
                 leadingIcon = Icons.Outlined.Notes,
                 singleLine = false,
                 modifier = Modifier.fillMaxWidth(),
             )
-
-            if (form.error != null) {
-                Text(
-                    text = form.error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-
-            FilledPrimaryButton(
-                text = if (form.guardando) "Guardando…" else textoBoton,
-                onClick = onGuardar,
-                enabled = form.isFormValid && !form.guardando,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            } // fin Column campos
         }
     }
 }
@@ -370,6 +437,7 @@ private fun AgregarClienteVacioPreview() {
         AgregarClienteContent(
             form = AgregarClienteFormState(),
             titulo = "Nuevo cliente",
+            esEdicion = false,
             textoBoton = "Agregar cliente",
             supervisores = com.grupo.elevapro.data.repository.FakeMockData.supervisores,
             onBack = {},
@@ -399,7 +467,8 @@ private fun AgregarClienteEdicionPreview() {
                 supervisorNombre = "Carlos Méndez",
                 notas = "Ascensor modelo 2010, revisión semestral.",
             ),
-            titulo = "Editar cliente",
+            titulo = "Detalle del cliente",
+            esEdicion = true,
             textoBoton = "Guardar cambios",
             supervisores = com.grupo.elevapro.data.repository.FakeMockData.supervisores,
             onBack = {},
@@ -412,6 +481,15 @@ private fun AgregarClienteEdicionPreview() {
             onNotas = {},
             onGuardar = {},
         )
+    }
+}
+
+private fun iniciales(nombre: String): String {
+    val palabras = nombre.trim().split(" ").filter { it.isNotBlank() }
+    return when {
+        palabras.size >= 2 -> "${palabras[0].first().uppercaseChar()}${palabras[1].first().uppercaseChar()}"
+        palabras.size == 1 -> palabras[0].take(2).uppercase()
+        else -> "??"
     }
 }
 

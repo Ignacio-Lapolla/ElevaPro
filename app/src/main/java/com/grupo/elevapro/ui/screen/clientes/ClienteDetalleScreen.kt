@@ -130,7 +130,7 @@ private fun ClienteDetalleContent(
     onOrdenClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val titulo = if (estado is ClienteDetalleUiState.Success) estado.cliente.nombre else "Detalle del cliente"
+    val titulo = "Detalle del cliente"
 
     Scaffold(
         topBar = {

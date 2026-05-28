@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,10 +19,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -98,6 +103,7 @@ fun ClientesScreen(
     onClienteClick: (String) -> Unit,
     onAgregarCliente: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenDrawer: () -> Unit = {},
     viewModel: ClientesViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
@@ -106,6 +112,7 @@ fun ClientesScreen(
         onBusqueda = viewModel::onBusqueda,
         onClienteClick = onClienteClick,
         onAgregarCliente = onAgregarCliente,
+        onOpenDrawer = onOpenDrawer,
         modifier = modifier,
     )
 }
@@ -116,6 +123,7 @@ private fun ClientesContent(
     onBusqueda: (String) -> Unit,
     onClienteClick: (String) -> Unit,
     onAgregarCliente: () -> Unit,
+    onOpenDrawer: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val busqueda = if (estado is ClientesUiState.Success) estado.busqueda else ""
@@ -124,6 +132,11 @@ private fun ClientesContent(
         topBar = {
             ElevaProTopAppBar(
                 titulo = "Clientes",
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Abrir menú")
+                    }
+                },
                 acciones = {
                     IconButton(onClick = {}) {
                         Icon(Icons.Outlined.Search, contentDescription = "Buscar")
@@ -134,9 +147,9 @@ private fun ClientesContent(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAgregarCliente,
-                containerColor = MaterialTheme.colorScheme.primary,
+                containerColor = MaterialTheme.colorScheme.tertiary,
             ) {
-                Icon(Icons.Outlined.Add, contentDescription = "Agregar cliente", tint = Color.White)
+                Icon(Icons.Outlined.Add, contentDescription = "Agregar cliente", tint = MaterialTheme.colorScheme.onTertiary)
             }
         },
         modifier = modifier,
@@ -194,16 +207,58 @@ private fun ClientesContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
                     )
-                    LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(7.dp),
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        items(estado.clientes, key = { it.id }) { cliente ->
-                            ClienteCard(
-                                cliente = cliente,
-                                onClick = { onClienteClick(cliente.id) },
+                    if (estado.clientes.isEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(96.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    Icons.Outlined.People,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.outline,
+                                )
+                            }
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                text = "No se encontraron clientes",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            if (estado.busqueda.isNotBlank()) {
+                                Spacer(Modifier.height(16.dp))
+                                Button(
+                                    onClick = { onBusqueda("") },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    ),
+                                ) {
+                                    Text("Limpiar búsqueda")
+                                }
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp),
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            items(estado.clientes, key = { it.id }) { cliente ->
+                                ClienteCard(
+                                    cliente = cliente,
+                                    onClick = { onClienteClick(cliente.id) },
+                                )
+                            }
                         }
                     }
                 }
@@ -277,24 +332,22 @@ private fun ClienteCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                if (cliente.telefono.isNotBlank()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Phone,
-                            contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = cliente.telefono,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                        )
-                    }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Phone,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = cliente.telefono,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
                 }
             }
 
