@@ -50,15 +50,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import com.grupo.elevapro.data.model.domain.GrupoNotificacion
 import com.grupo.elevapro.data.model.domain.Notificacion
 import com.grupo.elevapro.data.model.domain.TipoNotificacion
-import com.grupo.elevapro.data.repository.FakeMockData
+import com.grupo.elevapro.data.repository.NotificacionesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 // ── UiState & ViewModel ──────────────────────────────────────────────────────
@@ -70,26 +72,23 @@ data class NotificacionesUiState(
 }
 
 @HiltViewModel
-class NotificacionesViewModel @Inject constructor() : ViewModel() {
+class NotificacionesViewModel @Inject constructor(
+    private val repo: NotificacionesRepository,
+) : ViewModel() {
 
-    private val _estado = MutableStateFlow(NotificacionesUiState(FakeMockData.notificaciones))
-    val estado: StateFlow<NotificacionesUiState> = _estado.asStateFlow()
+    val estado: StateFlow<NotificacionesUiState> = repo.observarNotificaciones()
+        .map { NotificacionesUiState(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotificacionesUiState())
 
-    fun marcarLeida(id: String) {
-        _estado.update { s -> s.copy(notis = s.notis.map { if (it.id == id) it.copy(leida = true) else it }) }
+    init {
+        // El repositorio reactivo provee las notificaciones al suscribirse.
+        // Para H2: aquí se sincronizarían notificaciones desde el backend.
     }
 
-    fun marcarTodasLeidas() {
-        _estado.update { s -> s.copy(notis = s.notis.map { it.copy(leida = true) }) }
-    }
-
-    fun eliminar(id: String) {
-        _estado.update { s -> s.copy(notis = s.notis.filter { it.id != id }) }
-    }
-
-    fun limpiarTodas() {
-        _estado.update { it.copy(notis = emptyList()) }
-    }
+    fun marcarLeida(id: String) { viewModelScope.launch { repo.marcarLeida(id) } }
+    fun marcarTodasLeidas() { viewModelScope.launch { repo.marcarTodasLeidas() } }
+    fun eliminar(id: String) { viewModelScope.launch { repo.eliminar(id) } }
+    fun limpiarTodas() { viewModelScope.launch { repo.limpiarTodas() } }
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
