@@ -57,10 +57,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-private val SearchBarBg = Color(0xFFD5D5D5)
-private val TextSecondary = Color(0xFF3D3D3D)
-private val CardTitle = Color(0xFF1A1C1E)
-private val CardBorder = Color(0xFFBDBDBD)
 
 sealed interface ClientesUiState {
     data object Loading : ClientesUiState
@@ -174,8 +170,8 @@ private fun ClientesContent(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = SearchBarBg,
-                    focusedContainerColor = SearchBarBg,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     unfocusedBorderColor = Color.Transparent,
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                 ),
@@ -195,7 +191,7 @@ private fun ClientesContent(
                     Text(
                         text = "${estado.clientes.size} clientes",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
                     )
                     LazyColumn(
@@ -228,8 +224,8 @@ private fun ClienteCard(
             .fillMaxWidth()
             .height(91.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, CardBorder),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Row(
@@ -259,7 +255,7 @@ private fun ClienteCard(
                 Text(
                     text = cliente.nombre,
                     style = MaterialTheme.typography.titleMedium,
-                    color = CardTitle,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -271,12 +267,12 @@ private fun ClienteCard(
                         imageVector = Icons.Outlined.LocationOn,
                         contentDescription = null,
                         modifier = Modifier.size(12.dp),
-                        tint = TextSecondary,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = cliente.direccion,
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -290,12 +286,12 @@ private fun ClienteCard(
                             imageVector = Icons.Outlined.Phone,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
-                            tint = TextSecondary,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             text = cliente.telefono,
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                         )
                     }
