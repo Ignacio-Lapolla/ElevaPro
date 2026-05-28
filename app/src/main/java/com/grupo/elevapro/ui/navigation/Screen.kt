@@ -20,7 +20,11 @@ sealed class Screen(val route: String) {
         const val ARG_ID = "id"
         fun build(id: String) = "cliente/$id"
     }
-    data object AgregarCliente : Screen("cliente/nuevo")
+    data object AgregarCliente : Screen("cliente/nuevo?clienteId={clienteId}") {
+        const val ARG_ID = "clienteId"
+        fun build(id: String) = "cliente/nuevo?clienteId=$id"
+        val route_base = "cliente/nuevo"
+    }
 
     data object Facturacion : Screen("facturacion")
     data object FacturaDetalle : Screen("factura/{id}") {
