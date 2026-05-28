@@ -82,6 +82,11 @@ class PlantillasViewModel @Inject constructor(
         .map { PlantillasUiState.Success(it) as PlantillasUiState }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlantillasUiState.Loading)
 
+    init {
+        // El repositorio reactivo provee las plantillas al suscribirse.
+        // Para H2: aquí se llamaría a sincronizar() contra el backend.
+    }
+
     fun crear(nombre: String, descripcion: String, categoria: String, tiempoMinStr: String, tareasTexto: String) {
         viewModelScope.launch {
             plantillasRepository.crear(

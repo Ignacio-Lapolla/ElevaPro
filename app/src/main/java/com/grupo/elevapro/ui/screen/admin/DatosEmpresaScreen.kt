@@ -100,8 +100,24 @@ class DatosEmpresaViewModel @Inject constructor(
         .map { DatosEmpresaUiState.Success(it) as DatosEmpresaUiState }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DatosEmpresaUiState.Loading)
 
+    init {
+        // El repositorio reactivo provee los datos de empresa al suscribirse.
+        // Para H2: aquí se llamaría a sincronizar() contra el backend.
+    }
+
     private val _guardadoExitoso = MutableStateFlow(false)
     val guardadoExitoso: StateFlow<Boolean> = _guardadoExitoso.asStateFlow()
+
+    private val _certNombre = MutableStateFlow<String?>(null)
+    val certNombre: StateFlow<String?> = _certNombre.asStateFlow()
+
+    fun onEmpresaCargada(empresa: Empresa) {
+        _certNombre.value = empresa.certificadoAfipNombre
+    }
+
+    fun toggleCertificado() {
+        _certNombre.value = if (_certNombre.value == null) "certificado.pfx" else null
+    }
 
     fun guardar(
         razonSocial: String,
@@ -110,7 +126,6 @@ class DatosEmpresaViewModel @Inject constructor(
         telefono: String,
         email: String,
         condicionIva: CondicionIva,
-        certNombre: String?,
     ) {
         val empresaActual = (estado.value as? DatosEmpresaUiState.Success)?.empresa ?: return
         val cuitFormateado = buildString {
@@ -128,7 +143,7 @@ class DatosEmpresaViewModel @Inject constructor(
                     telefono              = telefono.trim(),
                     email                 = email.trim(),
                     condicionIva          = condicionIva,
-                    certificadoAfipNombre = certNombre,
+                    certificadoAfipNombre = _certNombre.value,
                 )
             )
             _guardadoExitoso.value = true
@@ -146,10 +161,20 @@ fun DatosEmpresaScreen(
 ) {
     val estado          by viewModel.estado.collectAsStateWithLifecycle()
     val guardadoExitoso by viewModel.guardadoExitoso.collectAsStateWithLifecycle()
+    val certNombre      by viewModel.certNombre.collectAsStateWithLifecycle()
+
+    LaunchedEffect(estado) {
+        if (estado is DatosEmpresaUiState.Success) {
+            viewModel.onEmpresaCargada((estado as DatosEmpresaUiState.Success).empresa)
+        }
+    }
+
     DatosEmpresaContent(
         estado            = estado,
         guardadoExitoso   = guardadoExitoso,
+        certNombre        = certNombre,
         onGuardadoHandled = viewModel::onGuardadoHandled,
+        onToggleCert      = viewModel::toggleCertificado,
         onGuardar         = viewModel::guardar,
         onBack            = onBack,
         modifier          = modifier,
@@ -161,8 +186,10 @@ fun DatosEmpresaScreen(
 private fun DatosEmpresaContent(
     estado: DatosEmpresaUiState,
     guardadoExitoso: Boolean,
+    certNombre: String?,
     onGuardadoHandled: () -> Unit,
-    onGuardar: (String, String, String, String, String, CondicionIva, String?) -> Unit,
+    onToggleCert: () -> Unit,
+    onGuardar: (String, String, String, String, String, CondicionIva) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -193,9 +220,11 @@ private fun DatosEmpresaContent(
             )
 
             is DatosEmpresaUiState.Success -> DatosEmpresaForm(
-                empresa   = s.empresa,
-                onGuardar = onGuardar,
-                modifier  = Modifier.fillMaxSize().padding(padding),
+                empresa      = s.empresa,
+                certNombre   = certNombre,
+                onToggleCert = onToggleCert,
+                onGuardar    = onGuardar,
+                modifier     = Modifier.fillMaxSize().padding(padding),
             )
         }
     }
@@ -205,7 +234,9 @@ private fun DatosEmpresaContent(
 @Composable
 private fun DatosEmpresaForm(
     empresa: Empresa,
-    onGuardar: (String, String, String, String, String, CondicionIva, String?) -> Unit,
+    certNombre: String?,
+    onToggleCert: () -> Unit,
+    onGuardar: (String, String, String, String, String, CondicionIva) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var razonSocial  by remember { mutableStateOf(empresa.razonSocial) }
@@ -214,7 +245,6 @@ private fun DatosEmpresaForm(
     var telefono     by remember { mutableStateOf(empresa.telefono) }
     var email        by remember { mutableStateOf(empresa.email) }
     var condicionIva by remember { mutableStateOf(empresa.condicionIva) }
-    var certNombre   by remember { mutableStateOf(empresa.certificadoAfipNombre) }
     var dropdownOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(empresa) {
@@ -224,7 +254,6 @@ private fun DatosEmpresaForm(
         telefono     = empresa.telefono
         email        = empresa.email
         condicionIva = empresa.condicionIva
-        certNombre   = empresa.certificadoAfipNombre
     }
 
     val puedeGuardar = razonSocial.isNotBlank() && cuit.length == 11 && email.isNotBlank()
@@ -291,19 +320,19 @@ private fun DatosEmpresaForm(
 
         if (certNombre == null) {
             OutlinedButton(
-                onClick = { certNombre = "certificado.pfx" },
+                onClick = onToggleCert,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Subir certificado") }
         } else {
             OutlinedButton(
-                onClick = { certNombre = null },
+                onClick = onToggleCert,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("$certNombre ✓  (toca para quitar)") }
         }
 
         FilledPrimaryButton(
             text = "Guardar cambios",
-            onClick = { onGuardar(razonSocial, cuit, direccion, telefono, email, condicionIva, certNombre) },
+            onClick = { onGuardar(razonSocial, cuit, direccion, telefono, email, condicionIva) },
             enabled = puedeGuardar,
             modifier = Modifier.fillMaxWidth(),
         )

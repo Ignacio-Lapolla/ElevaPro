@@ -114,6 +114,11 @@ class SupervisoresViewModel @Inject constructor(
         SupervisoresUiState.Success(filtrados, f) as SupervisoresUiState
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SupervisoresUiState.Loading)
 
+    init {
+        // El repositorio reactivo provee los supervisores al suscribirse.
+        // Para H2: aquí se llamaría a sincronizar() contra el backend.
+    }
+
     fun onFiltro(f: FiltroSupervisor) { filtro.value = f }
 
     fun agregar(nombre: String, telefono: String, email: String, especialidad: Especialidad) {

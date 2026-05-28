@@ -78,6 +78,11 @@ class RolesPermisosViewModel @Inject constructor(
         ) as RolesPermisosUiState
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RolesPermisosUiState.Loading)
 
+    init {
+        // Los flows de permisos por rol se activan al suscribirse vía combine().
+        // Para H2: aquí se cargarían los defaults desde backend si no hay cache local.
+    }
+
     private val _plantillaGuardada = MutableStateFlow(false)
     val plantillaGuardada: StateFlow<Boolean> = _plantillaGuardada.asStateFlow()
 
