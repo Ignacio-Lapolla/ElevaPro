@@ -50,7 +50,6 @@ import androidx.lifecycle.viewModelScope
 import com.grupo.elevapro.data.model.domain.Cliente
 import com.grupo.elevapro.data.model.domain.Orden
 import com.grupo.elevapro.data.repository.ClienteRepository
-import com.grupo.elevapro.data.repository.FakeMockData
 import com.grupo.elevapro.data.repository.OrdenesRepository
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.navigation.Screen
@@ -75,7 +74,7 @@ sealed interface ClienteDetalleUiState {
 @HiltViewModel
 class ClienteDetalleViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    clienteRepository: ClienteRepository,
+    private val clienteRepository: ClienteRepository,
     ordenesRepository: OrdenesRepository,
 ) : ViewModel() {
 
@@ -92,7 +91,7 @@ class ClienteDetalleViewModel @Inject constructor(
             .sortedByDescending { it.fecha }
             .take(5)
         val supervisorNombre = cliente.supervisorId
-            ?.let { sid -> FakeMockData.supervisores.find { it.id == sid }?.nombre }
+            ?.let { sid -> clienteRepository.obtenerSupervisorNombre(sid) }
         ClienteDetalleUiState.Success(
             cliente = cliente,
             ordenesRecientes = ordenesRecientes,
