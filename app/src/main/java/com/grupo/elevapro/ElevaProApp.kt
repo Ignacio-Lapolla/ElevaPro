@@ -1,5 +1,6 @@
 package com.grupo.elevapro
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.DrawerValue
@@ -83,6 +84,7 @@ fun ElevaProApp() {
         },
     ) {
         Scaffold(
+            contentWindowInsets = WindowInsets(0),
             bottomBar = {
                 val u = usuario
                 if (u != null && currentRoute in rutasConBottomNav) {
