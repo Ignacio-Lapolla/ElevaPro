@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.grupo.elevapro.ui.components.PlaceholderScreen
 import com.grupo.elevapro.ui.screen.auth.LoginScreen
 import com.grupo.elevapro.ui.screen.auth.OnboardingScreen
+import com.grupo.elevapro.ui.screen.clientes.ClientesScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
 
 @Composable
@@ -67,7 +68,12 @@ fun NavGraph(
         }
 
         // Clientes
-        composable(Screen.Clientes.route) { PlaceholderScreen(titulo = "Clientes") }
+        composable(Screen.Clientes.route) {
+            ClientesScreen(
+                onClienteClick = { id -> navController.navigate(Screen.ClienteDetalle.build(id)) },
+                onAgregarCliente = { navController.navigate(Screen.AgregarCliente.route) },
+            )
+        }
         composable(
             route = Screen.ClienteDetalle.route,
             arguments = listOf(navArgument(Screen.ClienteDetalle.ARG_ID) { type = NavType.StringType }),
