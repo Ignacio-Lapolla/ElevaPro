@@ -58,8 +58,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
-import java.util.Locale
+
 import javax.inject.Inject
 
 sealed interface FacturaDetalleUiState {
@@ -69,7 +68,10 @@ sealed interface FacturaDetalleUiState {
         val factura: Factura,
         val esAdmin: Boolean,
         val procesando: Boolean = false,
-    ) : FacturaDetalleUiState
+    ) : FacturaDetalleUiState {
+        val montoNeto: Double get() = factura.monto / 1.21
+        val montoIva: Double get() = factura.monto - montoNeto
+    }
 }
 
 @HiltViewModel
@@ -258,8 +260,8 @@ private fun FacturaDetalleBody(
 
         // Detalle económico
         SeccionTituloFactura("Detalle económico")
-        val neto = factura.monto / 1.21
-        val iva = factura.monto - neto
+        val neto = estado.montoNeto
+        val iva = estado.montoIva
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -268,11 +270,11 @@ private fun FacturaDetalleBody(
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                FilaEconomica(label = "Monto neto", valor = formatearMonto(neto))
+                FilaImporte(label = "Monto neto", valor = formatearMonto(neto))
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                FilaEconomica(label = "IVA 21%", valor = formatearMonto(iva))
+                FilaImporte(label = "IVA 21%", valor = formatearMonto(iva))
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                FilaEconomica(
+                FilaImporte(
                     label = "Total",
                     valor = formatearMonto(factura.monto),
                     negrita = true,
@@ -376,33 +378,6 @@ private fun FacturaDetalleBody(
 }
 
 @Composable
-private fun FilaEconomica(
-    label: String,
-    valor: String,
-    negrita: Boolean = false,
-    colorValor: Color = Color.Unspecified,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = if (negrita) MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-            else MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = valor,
-            style = if (negrita) MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-            else MaterialTheme.typography.bodyMedium,
-            color = if (colorValor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else colorValor,
-        )
-    }
-}
-
-@Composable
 private fun SeccionTituloFactura(titulo: String) {
     Text(
         text = titulo.uppercase(),
@@ -465,5 +440,3 @@ private fun FacturaDetallePendienteOperativoPreview() {
     }
 }
 
-private fun formatearMonto(monto: Double): String =
-    NumberFormat.getCurrencyInstance(Locale("es", "AR")).format(monto)
