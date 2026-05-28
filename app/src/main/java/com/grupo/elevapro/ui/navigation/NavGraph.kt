@@ -12,6 +12,11 @@ import com.grupo.elevapro.ui.screen.articulos.ArticulosScreen
 import com.grupo.elevapro.ui.screen.auth.LoginScreen
 import com.grupo.elevapro.ui.screen.auth.OnboardingScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
+import com.grupo.elevapro.ui.screen.perfil.AyudaSoporteScreen
+import com.grupo.elevapro.ui.screen.perfil.ConfiguracionScreen
+import com.grupo.elevapro.ui.screen.perfil.NotificacionesScreen
+import com.grupo.elevapro.ui.screen.perfil.OpcionesScreen
+import com.grupo.elevapro.ui.screen.perfil.PerfilScreen
 
 @Composable
 fun NavGraph(
@@ -111,10 +116,30 @@ fun NavGraph(
         composable(Screen.DatosEmpresa.route) { PlaceholderScreen(titulo = "Datos de empresa", onBack = { navController.popBackStack() }) }
 
         // Perfil
-        composable(Screen.Perfil.route) { PlaceholderScreen(titulo = "Perfil") }
-        composable(Screen.Notificaciones.route) { PlaceholderScreen(titulo = "Notificaciones", onBack = { navController.popBackStack() }) }
-        composable(Screen.Configuracion.route) { PlaceholderScreen(titulo = "Configuración", onBack = { navController.popBackStack() }) }
-        composable(Screen.AyudaSoporte.route) { PlaceholderScreen(titulo = "Ayuda y soporte", onBack = { navController.popBackStack() }) }
-        composable(Screen.Opciones.route) { PlaceholderScreen(titulo = "Opciones", onBack = { navController.popBackStack() }) }
+        composable(Screen.Perfil.route) {
+            PerfilScreen(
+                onNavTo = { navController.navigate(it) },
+                onLogout = {
+                    navController.navigate(Screen.Onboarding.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable(Screen.Notificaciones.route) {
+            NotificacionesScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Configuracion.route) {
+            ConfiguracionScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.AyudaSoporte.route) {
+            AyudaSoporteScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Opciones.route) {
+            OpcionesScreen(
+                onNavTo = { navController.navigate(it) },
+                onBack = { navController.popBackStack() },
+            )
+        }
     }
 }

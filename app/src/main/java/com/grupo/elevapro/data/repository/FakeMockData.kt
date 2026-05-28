@@ -5,10 +5,13 @@ import com.grupo.elevapro.data.model.domain.Cliente
 import com.grupo.elevapro.data.model.domain.Especialidad
 import com.grupo.elevapro.data.model.domain.EstadoFactura
 import com.grupo.elevapro.data.model.domain.Factura
+import com.grupo.elevapro.data.model.domain.GrupoNotificacion
+import com.grupo.elevapro.data.model.domain.Notificacion
 import com.grupo.elevapro.data.model.domain.Orden
 import com.grupo.elevapro.data.model.domain.Plantilla
 import com.grupo.elevapro.data.model.domain.Rol
 import com.grupo.elevapro.data.model.domain.Supervisor
+import com.grupo.elevapro.data.model.domain.TipoNotificacion
 import com.grupo.elevapro.data.model.domain.Usuario
 
 object FakeMockData {
@@ -139,6 +142,17 @@ object FakeMockData {
         Usuario("u3", "María García", "maria.garcia", Rol.OPERATIVO, "123", "+54 11 4123-3333", null),
         Usuario("u4", "Laura Pérez", "admin", Rol.ADMINISTRADOR, "123", "+54 11 4123-4444", null),
         Usuario("u5", "Diego Ramírez", "admin.dramirez", Rol.ADMINISTRADOR, "123", "+54 11 4123-5555", null),
+    )
+
+    val notificaciones: List<Notificacion> = listOf(
+        Notificacion("n1", TipoNotificacion.ORDEN_FIRMADA,    "Orden OT-0003 firmada",           "Cons. Prop. Juncal 3150 firmó la orden de Inspección Anual.",       "09:15",  leida = false, GrupoNotificacion.HOY),
+        Notificacion("n2", TipoNotificacion.ALERTA,           "Vencimiento de CAE próximo",       "La factura 0001-00000123 vence el 05 abr. Revisá el estado.",         "08:42",  leida = false, GrupoNotificacion.HOY),
+        Notificacion("n3", TipoNotificacion.CLIENTE_NUEVO,    "Nuevo cliente registrado",         "Cons. Prop. Charlone 349 fue dado de alta en el sistema.",            "Ayer, 17:30", leida = false, GrupoNotificacion.AYER),
+        Notificacion("n4", TipoNotificacion.FACTURA_APROBADA, "Factura aprobada por ARCA",        "La factura 0001-00000125 fue aprobada. CAE: 74125896301246.",          "Ayer, 14:10", leida = true,  GrupoNotificacion.AYER),
+        Notificacion("n5", TipoNotificacion.ORDEN_PENDIENTE,  "Orden OT-0005 sin asignar",        "La orden de Limpieza de Foso en Charcas 4298 aún no tiene técnico.", "Ayer, 11:00", leida = true,  GrupoNotificacion.AYER),
+        Notificacion("n6", TipoNotificacion.FACTURA_RECHAZADA,"Factura rechazada por ARCA",       "La factura 0001-00000126 fue rechazada. Revisá los datos del receptor.", "Lun, 09:00", leida = true, GrupoNotificacion.ESTA_SEMANA),
+        Notificacion("n7", TipoNotificacion.SUPERVISOR,       "Carlos Méndez completó una visita","OT-0001 en Valentín Gomez 2711 marcada como completada.",             "Lun, 08:30", leida = true,  GrupoNotificacion.ESTA_SEMANA),
+        Notificacion("n8", TipoNotificacion.SISTEMA,          "Actualización de la app disponible","La versión 0.2.0 está lista. Revisá las novedades en Ayuda.",         "Dom, 20:00", leida = true,  GrupoNotificacion.ESTA_SEMANA),
     )
 
     /**
