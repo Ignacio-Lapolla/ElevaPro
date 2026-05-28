@@ -18,8 +18,12 @@ import androidx.compose.material.icons.outlined.Business
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Engineering
+import androidx.compose.material.icons.outlined.Help
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
@@ -87,12 +91,16 @@ class PerfilViewModel @Inject constructor(
 
 @Composable
 fun PerfilScreen(
-    onSupervisores: () -> Unit,
-    onPlantillas: () -> Unit,
-    onDatosEmpresa: () -> Unit,
-    onUsuarios: () -> Unit,
-    onRolesPermisos: () -> Unit,
-    onLogout: () -> Unit,
+    onSupervisores:   () -> Unit,
+    onPlantillas:     () -> Unit,
+    onDatosEmpresa:   () -> Unit,
+    onUsuarios:       () -> Unit,
+    onRolesPermisos:  () -> Unit,
+    onNotificaciones: () -> Unit,
+    onConfiguracion:  () -> Unit,
+    onAyudaSoporte:   () -> Unit,
+    onOpciones:       () -> Unit,
+    onLogout:         () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PerfilViewModel = hiltViewModel(),
 ) {
@@ -107,14 +115,18 @@ fun PerfilScreen(
     }
 
     PerfilContent(
-        estado          = estado,
-        onSupervisores  = onSupervisores,
-        onPlantillas    = onPlantillas,
-        onDatosEmpresa  = onDatosEmpresa,
-        onUsuarios      = onUsuarios,
-        onRolesPermisos = onRolesPermisos,
-        onLogout        = viewModel::logout,
-        modifier        = modifier,
+        estado           = estado,
+        onSupervisores   = onSupervisores,
+        onPlantillas     = onPlantillas,
+        onDatosEmpresa   = onDatosEmpresa,
+        onUsuarios       = onUsuarios,
+        onRolesPermisos  = onRolesPermisos,
+        onNotificaciones = onNotificaciones,
+        onConfiguracion  = onConfiguracion,
+        onAyudaSoporte   = onAyudaSoporte,
+        onOpciones       = onOpciones,
+        onLogout         = viewModel::logout,
+        modifier         = modifier,
     )
 }
 
@@ -126,6 +138,10 @@ private fun PerfilContent(
     onDatosEmpresa: () -> Unit,
     onUsuarios: () -> Unit,
     onRolesPermisos: () -> Unit,
+    onNotificaciones: () -> Unit,
+    onConfiguracion: () -> Unit,
+    onAyudaSoporte: () -> Unit,
+    onOpciones: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -140,14 +156,18 @@ private fun PerfilContent(
             ) { CircularProgressIndicator() }
 
             is PerfilUiState.Success -> PerfilSuccessBody(
-                usuario        = s.usuario,
-                onSupervisores = onSupervisores,
-                onPlantillas   = onPlantillas,
-                onDatosEmpresa = onDatosEmpresa,
-                onUsuarios     = onUsuarios,
-                onRolesPermisos = onRolesPermisos,
-                onLogout       = onLogout,
-                modifier       = Modifier.fillMaxSize().padding(padding),
+                usuario          = s.usuario,
+                onSupervisores   = onSupervisores,
+                onPlantillas     = onPlantillas,
+                onDatosEmpresa   = onDatosEmpresa,
+                onUsuarios       = onUsuarios,
+                onRolesPermisos  = onRolesPermisos,
+                onNotificaciones = onNotificaciones,
+                onConfiguracion  = onConfiguracion,
+                onAyudaSoporte   = onAyudaSoporte,
+                onOpciones       = onOpciones,
+                onLogout         = onLogout,
+                modifier         = Modifier.fillMaxSize().padding(padding),
             )
         }
     }
@@ -161,6 +181,10 @@ private fun PerfilSuccessBody(
     onDatosEmpresa: () -> Unit,
     onUsuarios: () -> Unit,
     onRolesPermisos: () -> Unit,
+    onNotificaciones: () -> Unit,
+    onConfiguracion: () -> Unit,
+    onAyudaSoporte: () -> Unit,
+    onOpciones: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -201,12 +225,22 @@ private fun PerfilSuccessBody(
             modifier = Modifier.padding(start = 4.dp),
         )
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-            PerfilMenuItem(
-                icon = Icons.AutoMirrored.Outlined.ExitToApp,
-                label = "Cerrar sesión",
-                onClick = onLogout,
-                tintError = true,
-            )
+            Column {
+                PerfilMenuItem(icon = Icons.Outlined.Notifications, label = "Notificaciones", onClick = onNotificaciones)
+                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                PerfilMenuItem(icon = Icons.Outlined.Settings, label = "Configuración", onClick = onConfiguracion)
+                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                PerfilMenuItem(icon = Icons.Outlined.Help, label = "Ayuda y soporte", onClick = onAyudaSoporte)
+                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                PerfilMenuItem(icon = Icons.Outlined.Tune, label = "Opciones", onClick = onOpciones)
+                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                PerfilMenuItem(
+                    icon = Icons.AutoMirrored.Outlined.ExitToApp,
+                    label = "Cerrar sesión",
+                    onClick = onLogout,
+                    tintError = true,
+                )
+            }
         }
     }
 }
