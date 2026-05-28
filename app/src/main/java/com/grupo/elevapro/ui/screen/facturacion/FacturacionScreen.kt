@@ -25,16 +25,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,8 +45,7 @@ import com.grupo.elevapro.data.repository.FacturacionRepository
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.StatusChip
 import com.grupo.elevapro.ui.components.TipoEstado
-import com.grupo.elevapro.ui.theme.Success
-import com.grupo.elevapro.ui.theme.Warning
+import com.grupo.elevapro.ui.components.FilterChipBar
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -61,60 +56,46 @@ import java.text.NumberFormat
 import java.util.Locale
 import javax.inject.Inject
 
-enum class FiltroFactura(val label: String) {
-    TODAS("Todas"),
-    PENDIENTES("Pendientes"),
-    APROBADAS("Aprobadas"),
-    RECHAZADAS("Rechazadas"),
-}
-
 sealed interface FacturacionUiState {
     data object Loading : FacturacionUiState
-    data object SoloAdmin : FacturacionUiState
-    data class Success(
-        val facturas: List<Factura>,
-        val filtro: FiltroFactura,
-        val totalFacturado: Double,
-        val totalPendiente: Double,
-    ) : FacturacionUiState
-    data class Error(val msg: String) : FacturacionUiState
+    data object SinPermiso : FacturacionUiState
+    data class Success(val facturas: List<Factura>, val filtro: EstadoFactura?) : FacturacionUiState
 }
+
+private val OPCIONES_FILTRO: List<Pair<EstadoFactura?, String>> = listOf(
+    null to "Todas",
+    EstadoFactura.PENDIENTE to "Pendientes",
+    EstadoFactura.APROBADA to "Aprobadas",
+    EstadoFactura.RECHAZADA to "Rechazadas",
+)
 
 @HiltViewModel
 class FacturacionViewModel @Inject constructor(
-    facturacionRepository: FacturacionRepository,
-    authRepository: AuthRepository,
+    private val facturasRepo: FacturacionRepository,
+    private val authRepo: AuthRepository,
 ) : ViewModel() {
 
-    private val _filtro = MutableStateFlow(FiltroFactura.TODAS)
+    private val filtro = MutableStateFlow<EstadoFactura?>(null)
 
     val estado: StateFlow<FacturacionUiState> = combine(
-        facturacionRepository.observarFacturas(),
-        authRepository.usuarioActual,
-        _filtro,
-    ) { facturas, usuario, filtro ->
-        if (usuario == null || usuario.rol == Rol.OPERATIVO) {
-            return@combine FacturacionUiState.SoloAdmin
+        facturasRepo.observarFacturas(),
+        filtro,
+        authRepo.usuarioActual,
+    ) { lista, f, user ->
+        when {
+            user?.rol != Rol.ADMINISTRADOR -> FacturacionUiState.SinPermiso
+            else -> FacturacionUiState.Success(
+                facturas = lista.filter { f == null || it.estado == f },
+                filtro = f,
+            )
         }
-        val filtradas = when (filtro) {
-            FiltroFactura.TODAS -> facturas
-            FiltroFactura.PENDIENTES -> facturas.filter { it.estado == EstadoFactura.PENDIENTE }
-            FiltroFactura.APROBADAS -> facturas.filter { it.estado == EstadoFactura.APROBADA }
-            FiltroFactura.RECHAZADAS -> facturas.filter { it.estado == EstadoFactura.RECHAZADA }
-        }
-        FacturacionUiState.Success(
-            facturas = filtradas,
-            filtro = filtro,
-            totalFacturado = facturas.filter { it.estado == EstadoFactura.APROBADA }.sumOf { it.monto },
-            totalPendiente = facturas.filter { it.estado == EstadoFactura.PENDIENTE }.sumOf { it.monto },
-        ) as FacturacionUiState
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = FacturacionUiState.Loading,
     )
 
-    fun onFiltro(f: FiltroFactura) { _filtro.value = f }
+    fun onFiltro(f: EstadoFactura?) { filtro.value = f }
 }
 
 @Composable
@@ -138,7 +119,7 @@ fun FacturacionScreen(
 @Composable
 private fun FacturacionContent(
     estado: FacturacionUiState,
-    onFiltro: (FiltroFactura) -> Unit,
+    onFiltro: (EstadoFactura?) -> Unit,
     onFacturaClick: (String) -> Unit,
     onGenerarFactura: () -> Unit,
     modifier: Modifier = Modifier,
@@ -187,7 +168,7 @@ private fun FacturacionContent(
                 "Cargando…",
                 modifier = Modifier.padding(padding).padding(16.dp),
             )
-            FacturacionUiState.SoloAdmin -> SoloAdminContent(
+            FacturacionUiState.SinPermiso -> SoloAdminContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
@@ -228,58 +209,13 @@ private fun FacturacionContent(
                     }
                 }
 
-                // Tarjetas de totales
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TarjetaTotal(
-                        etiqueta = "FACTURADO",
-                        monto = estado.totalFacturado,
-                        cantidad = estado.facturas.count { it.estado == EstadoFactura.APROBADA },
-                        descripcion = "aprobadas",
-                        colorFondo = Success.copy(alpha = 0.12f),
-                        colorTexto = Success,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TarjetaTotal(
-                        etiqueta = "PENDIENTE",
-                        monto = estado.totalPendiente,
-                        cantidad = estado.facturas.count { it.estado == EstadoFactura.PENDIENTE },
-                        descripcion = "pendientes",
-                        colorFondo = Warning.copy(alpha = 0.15f),
-                        colorTexto = Warning,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                // Filtros segmentados
-                SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                ) {
-                    FiltroFactura.entries.forEachIndexed { index, filtro ->
-                        SegmentedButton(
-                            selected = estado.filtro == filtro,
-                            onClick = { onFiltro(filtro) },
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index = index,
-                                count = FiltroFactura.entries.size,
-                            ),
-                            label = {
-                                Text(
-                                    filtro.label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
-                            },
-                        )
-                    }
-                }
+                FilterChipBar(
+                    opciones = OPCIONES_FILTRO.map { it.second },
+                    seleccionada = OPCIONES_FILTRO.first { it.first == estado.filtro }.second,
+                    onSeleccion = { label ->
+                        onFiltro(OPCIONES_FILTRO.first { it.second == label }.first)
+                    },
+                )
 
                 Spacer(Modifier.height(8.dp))
 
@@ -296,41 +232,6 @@ private fun FacturacionContent(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun TarjetaTotal(
-    etiqueta: String,
-    monto: Double,
-    cantidad: Int,
-    descripcion: String,
-    colorFondo: Color,
-    colorTexto: Color,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        color = colorFondo,
-        shape = MaterialTheme.shapes.medium,
-        modifier = modifier,
-    ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = etiqueta,
-                style = MaterialTheme.typography.labelSmall,
-                color = colorTexto,
-            )
-            Text(
-                text = formatearMonto(monto),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = colorTexto,
-            )
-            Text(
-                text = "$cantidad $descripcion",
-                style = MaterialTheme.typography.bodySmall,
-                color = colorTexto,
-            )
         }
     }
 }
@@ -466,9 +367,7 @@ private fun FacturacionSuccessPreview() {
         FacturacionContent(
             estado = FacturacionUiState.Success(
                 facturas = com.grupo.elevapro.data.repository.FakeMockData.facturas,
-                filtro = FiltroFactura.TODAS,
-                totalFacturado = 625000.0,
-                totalPendiente = 3130000.0,
+                filtro = null,
             ),
             onFiltro = {},
             onFacturaClick = {},
@@ -482,7 +381,7 @@ private fun FacturacionSuccessPreview() {
 private fun FacturacionSoloAdminPreview() {
     com.grupo.elevapro.ui.theme.ElevaProTheme {
         FacturacionContent(
-            estado = FacturacionUiState.SoloAdmin,
+            estado = FacturacionUiState.SinPermiso,
             onFiltro = {},
             onFacturaClick = {},
             onGenerarFactura = {},
