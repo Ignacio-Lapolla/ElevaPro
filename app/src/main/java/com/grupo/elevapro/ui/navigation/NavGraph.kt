@@ -23,6 +23,8 @@ import com.grupo.elevapro.ui.screen.facturacion.FacturaDetalleScreen
 import com.grupo.elevapro.ui.screen.facturacion.FacturacionScreen
 import com.grupo.elevapro.ui.screen.facturacion.GenerarFacturaScreen
 import com.grupo.elevapro.ui.screen.facturacion.NuevaFacturaScreen
+import com.grupo.elevapro.ui.screen.ordenes.NuevaOrdenScreen
+import com.grupo.elevapro.ui.screen.ordenes.OrdenDetalleScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
 import com.grupo.elevapro.ui.screen.perfil.AyudaSoporteScreen
 import com.grupo.elevapro.ui.screen.perfil.ConfiguracionScreen
@@ -74,10 +76,13 @@ fun NavGraph(
             route = Screen.OrdenDetalle.route,
             arguments = listOf(navArgument(Screen.OrdenDetalle.ARG_ID) { type = NavType.StringType }),
         ) {
-            PlaceholderScreen(titulo = "Detalle Orden", onBack = { navController.popBackStack() })
+            OrdenDetalleScreen(
+                onBack   = { navController.popBackStack() },
+                onFirmar = { id -> navController.navigate(Screen.Firma.build(id)) },
+            )
         }
         composable(Screen.NuevaOrden.route) {
-            PlaceholderScreen(titulo = "Nueva Orden", onBack = { navController.popBackStack() })
+            NuevaOrdenScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = Screen.Firma.route,
