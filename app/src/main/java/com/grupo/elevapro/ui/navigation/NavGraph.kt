@@ -10,6 +10,12 @@ import androidx.navigation.navArgument
 import com.grupo.elevapro.ui.components.PlaceholderScreen
 import com.grupo.elevapro.ui.screen.auth.LoginScreen
 import com.grupo.elevapro.ui.screen.auth.OnboardingScreen
+import com.grupo.elevapro.ui.screen.clientes.AgregarClienteScreen
+import com.grupo.elevapro.ui.screen.facturacion.FacturaDetalleScreen
+import com.grupo.elevapro.ui.screen.facturacion.FacturacionScreen
+import com.grupo.elevapro.ui.screen.facturacion.GenerarFacturaScreen
+import com.grupo.elevapro.ui.screen.facturacion.NuevaFacturaScreen
+import com.grupo.elevapro.ui.screen.clientes.ClientesScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
 
 @Composable
@@ -17,6 +23,7 @@ fun NavGraph(
     navController: NavHostController,
     startDestination: String,
     modifier: Modifier = Modifier,
+    onOpenDrawer: () -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -48,6 +55,7 @@ fun NavGraph(
             OrdenesScreen(
                 onOrdenClick = { id -> navController.navigate(Screen.OrdenDetalle.build(id)) },
                 onNuevaOrden = { navController.navigate(Screen.NuevaOrden.route) },
+                onOpenDrawer = onOpenDrawer,
             )
         }
         composable(
@@ -67,30 +75,48 @@ fun NavGraph(
         }
 
         // Clientes
-        composable(Screen.Clientes.route) { PlaceholderScreen(titulo = "Clientes") }
-        composable(
-            route = Screen.ClienteDetalle.route,
-            arguments = listOf(navArgument(Screen.ClienteDetalle.ARG_ID) { type = NavType.StringType }),
-        ) {
-            PlaceholderScreen(titulo = "Detalle Cliente", onBack = { navController.popBackStack() })
+        composable(Screen.Clientes.route) {
+            ClientesScreen(
+                onClienteClick = { id -> navController.navigate(Screen.AgregarCliente.build(id)) },
+                onAgregarCliente = { navController.navigate(Screen.AgregarCliente.route_base) },
+                onOpenDrawer = onOpenDrawer,
+            )
         }
-        composable(Screen.AgregarCliente.route) {
-            PlaceholderScreen(titulo = "Nuevo Cliente", onBack = { navController.popBackStack() })
+        composable(
+            route = Screen.AgregarCliente.route,
+            arguments = listOf(
+                navArgument(Screen.AgregarCliente.ARG_ID) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+        ) {
+            AgregarClienteScreen(onBack = { navController.popBackStack() })
         }
 
         // Facturación
-        composable(Screen.Facturacion.route) { PlaceholderScreen(titulo = "Facturación") }
+        composable(Screen.Facturacion.route) {
+            FacturacionScreen(
+                onFacturaClick = { id -> navController.navigate(Screen.FacturaDetalle.build(id)) },
+                onGenerarFactura = { navController.navigate(Screen.GenerarFactura.route) },
+                onOpenDrawer = onOpenDrawer,
+            )
+        }
         composable(
             route = Screen.FacturaDetalle.route,
             arguments = listOf(navArgument(Screen.FacturaDetalle.ARG_ID) { type = NavType.StringType }),
         ) {
-            PlaceholderScreen(titulo = "Detalle Factura", onBack = { navController.popBackStack() })
+            FacturaDetalleScreen(
+                onBack = { navController.popBackStack() },
+                onOrdenClick = { id -> navController.navigate(Screen.OrdenDetalle.build(id)) },
+            )
         }
         composable(Screen.GenerarFactura.route) {
-            PlaceholderScreen(titulo = "Generar Factura", onBack = { navController.popBackStack() })
+            GenerarFacturaScreen(onBack = { navController.popBackStack() })
         }
         composable(Screen.NuevaFactura.route) {
-            PlaceholderScreen(titulo = "Nueva Factura", onBack = { navController.popBackStack() })
+            NuevaFacturaScreen(onBack = { navController.popBackStack() })
         }
 
         // Artículos

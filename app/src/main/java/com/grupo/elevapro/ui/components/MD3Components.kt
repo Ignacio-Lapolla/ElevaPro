@@ -1,6 +1,7 @@
 package com.grupo.elevapro.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -11,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -19,10 +19,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material.icons.Icons
@@ -43,23 +43,45 @@ import com.grupo.elevapro.ui.theme.Warning
 fun ElevaProTopAppBar(
     titulo: String,
     modifier: Modifier = Modifier,
+    subtitulo: String? = null,
     onBack: (() -> Unit)? = null,
     acciones: @Composable RowScope.() -> Unit = {},
+    navigationIcon: (@Composable () -> Unit)? = null,
 ) {
-    CenterAlignedTopAppBar(
-        title = { Text(titulo, style = MaterialTheme.typography.titleLarge) },
+    TopAppBar(
+        title = {
+            Column {
+                Text(
+                    titulo,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                if (subtitulo != null) {
+                    Text(
+                        subtitulo,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
         navigationIcon = {
-            if (onBack != null) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
+            when {
+                navigationIcon != null -> navigationIcon()
+                onBack != null -> IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         },
         actions = acciones,
         modifier = modifier,
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+        colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         ),
     )
 }
@@ -75,7 +97,8 @@ fun FilledPrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.heightIn(min = 48.dp),
+        modifier = modifier.heightIn(min = 52.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -98,12 +121,14 @@ fun OutlinedSecondaryButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.heightIn(min = 48.dp),
+        modifier = modifier.heightIn(min = 52.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge)
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ElevaProTextField(
     value: String,
@@ -118,7 +143,7 @@ fun ElevaProTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     singleLine: Boolean = true,
 ) {
-    OutlinedTextField(
+    TextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
@@ -130,7 +155,17 @@ fun ElevaProTextField(
         visualTransformation = visualTransformation,
         singleLine = singleLine,
         modifier = modifier.fillMaxWidth(),
-        colors = OutlinedTextFieldDefaults.colors(),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp),
     )
 }
 
@@ -170,7 +205,10 @@ fun FilterChipBar(
                 selected = op == seleccionada,
                 onClick = { onSeleccion(op) },
                 label = { Text(op, style = MaterialTheme.typography.labelLarge) },
-                colors = FilterChipDefaults.filterChipColors(),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ),
             )
         }
     }
