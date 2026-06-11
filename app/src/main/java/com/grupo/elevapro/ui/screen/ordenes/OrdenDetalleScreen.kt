@@ -42,7 +42,7 @@ import com.grupo.elevapro.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -60,11 +60,12 @@ class OrdenDetalleViewModel @Inject constructor(
 
     private val id: String = checkNotNull(savedStateHandle[Screen.OrdenDetalle.ARG_ID])
 
-    val estado: StateFlow<DetalleUiState> = flow {
-        emit(DetalleUiState.Loading)
-        val orden = repo.obtenerPorId(id)
-        emit(if (orden != null) DetalleUiState.Success(orden) else DetalleUiState.Error("Orden no encontrada"))
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetalleUiState.Loading)
+    val estado: StateFlow<DetalleUiState> = repo.observarOrdenes()
+        .map { ordenes ->
+            val orden = ordenes.find { it.id == id }
+            if (orden != null) DetalleUiState.Success(orden) else DetalleUiState.Error("Orden no encontrada")
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetalleUiState.Loading)
 }
 
 @Composable
