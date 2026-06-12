@@ -138,7 +138,10 @@ fun NavGraph(
         }
 
         // Artículos
-        composable(Screen.Articulos.route) { ArticulosScreen() }
+        composable(Screen.Articulos.route) {
+            val canBack = navController.previousBackStackEntry != null
+            ArticulosScreen(onBack = if (canBack) ({ navController.popBackStack() }) else null)
+        }
 
         // Admin
         composable(Screen.Usuarios.route) {
@@ -196,7 +199,11 @@ fun NavGraph(
         }
         composable(Screen.Opciones.route) {
             OpcionesScreen(
-                onNavTo = { navController.navigate(it) },
+                onNavTo = { ruta ->
+                    navController.navigate(ruta) {
+                        popUpTo(Screen.Perfil.route) { inclusive = false }
+                    }
+                },
                 onBack = { navController.popBackStack() },
             )
         }

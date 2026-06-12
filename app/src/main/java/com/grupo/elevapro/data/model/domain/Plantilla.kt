@@ -7,4 +7,5 @@ data class Plantilla(
     val categoria: String,
     val tareas: List<String>,
     val tiempoEstimadoMin: Int,
+    val tareasCompletadas: Set<Int> = emptySet(),
 )

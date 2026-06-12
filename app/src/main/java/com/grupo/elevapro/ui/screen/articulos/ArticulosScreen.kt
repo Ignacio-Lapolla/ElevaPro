@@ -156,6 +156,7 @@ class ArticulosViewModel @Inject constructor(
 
 @Composable
 fun ArticulosScreen(
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: ArticulosViewModel = hiltViewModel(),
 ) {
@@ -164,6 +165,7 @@ fun ArticulosScreen(
     ArticulosContent(
         estado = estado,
         form = form,
+        onBack = onBack,
         onBusqueda = viewModel::onBusqueda,
         onCategoria = viewModel::onCategoria,
         onFormChange = viewModel::onFormChange,
@@ -178,6 +180,7 @@ fun ArticulosScreen(
 private fun ArticulosContent(
     estado: ArticulosUiState,
     form: NuevoArticuloForm,
+    onBack: (() -> Unit)?,
     onBusqueda: (String) -> Unit,
     onCategoria: (String?) -> Unit,
     onFormChange: (NuevoArticuloForm) -> Unit,
@@ -188,7 +191,7 @@ private fun ArticulosContent(
     var mostrarSheet by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { ElevaProTopAppBar("Artículos") },
+        topBar = { ElevaProTopAppBar("Artículos", onBack = onBack) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { mostrarSheet = true },
