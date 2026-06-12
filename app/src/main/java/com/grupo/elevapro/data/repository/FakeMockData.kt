@@ -181,6 +181,5 @@ object FakeMockData {
         if (email.isBlank()) return null
         val normalizado = email.trim().lowercase()
         return usuarios.firstOrNull { it.email.lowercase() == normalizado }
-            ?: usuarios.firstOrNull { normalizado.startsWith(it.email.lowercase()) }
     }
 }
