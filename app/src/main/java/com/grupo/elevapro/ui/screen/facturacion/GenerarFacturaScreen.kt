@@ -252,7 +252,7 @@ private fun GenerarFacturaContent(
                         Text(formulario.form.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                     FilledPrimaryButton(
-                        text = if (formulario?.form?.generando == true) "Generando…" else "Generar vista previa",
+                        text = if (formulario?.form?.generando == true) "Generando…" else "Generar factura",
                         onClick = onGenerar,
                         enabled = formulario?.form?.isFormValid == true && formulario.form.generando == false,
                         icon = Icons.Outlined.Receipt,
