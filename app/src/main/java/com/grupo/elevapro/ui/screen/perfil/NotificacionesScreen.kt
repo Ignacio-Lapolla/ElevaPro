@@ -27,7 +27,6 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -215,11 +214,22 @@ private fun NotiItem(
 
     ListItem(
         headlineContent = {
-            Text(
-                text = noti.titulo,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = if (!noti.leida) FontWeight.Bold else FontWeight.Normal,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = noti.titulo,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = if (!noti.leida) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (!noti.leida) {
+                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                        Text("Nueva", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
         },
         supportingContent = {
             Column {
@@ -233,26 +243,18 @@ private fun NotiItem(
             }
         },
         leadingContent = {
-            BadgedBox(badge = {
-                if (!noti.leida) {
-                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                        Text("Nueva", style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(containerBg, RoundedCornerShape(10.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = iconoVector,
-                        contentDescription = noti.tipo.etiqueta(),
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(containerBg, RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = iconoVector,
+                    contentDescription = noti.tipo.etiqueta(),
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         },
         trailingContent = {
