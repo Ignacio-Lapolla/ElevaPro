@@ -12,6 +12,7 @@ interface AuthRepository {
     val usuarioActual: StateFlow<Usuario?>
     suspend fun login(empresa: String, email: String, password: String): Result<Usuario>
     fun logout()
+    fun buscarPerfilPorEmail(email: String): Usuario?
 }
 
 @Singleton
@@ -32,4 +33,6 @@ class FakeAuthRepository @Inject constructor() : AuthRepository {
     override fun logout() {
         _usuarioActual.value = null
     }
+
+    override fun buscarPerfilPorEmail(email: String): Usuario? = FakeMockData.usuarioPorEmail(email)
 }

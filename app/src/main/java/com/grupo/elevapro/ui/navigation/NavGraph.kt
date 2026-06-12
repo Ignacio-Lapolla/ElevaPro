@@ -23,6 +23,7 @@ import com.grupo.elevapro.ui.screen.facturacion.FacturaDetalleScreen
 import com.grupo.elevapro.ui.screen.facturacion.FacturacionScreen
 import com.grupo.elevapro.ui.screen.facturacion.GenerarFacturaScreen
 import com.grupo.elevapro.ui.screen.facturacion.NuevaFacturaScreen
+import com.grupo.elevapro.ui.screen.ordenes.FirmaScreen
 import com.grupo.elevapro.ui.screen.ordenes.NuevaOrdenScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenDetalleScreen
 import com.grupo.elevapro.ui.screen.ordenes.OrdenesScreen
@@ -88,7 +89,7 @@ fun NavGraph(
             route = Screen.Firma.route,
             arguments = listOf(navArgument(Screen.Firma.ARG_ID) { type = NavType.StringType }),
         ) {
-            PlaceholderScreen(titulo = "Firma de conformidad", onBack = { navController.popBackStack() })
+            FirmaScreen(onBack = { navController.popBackStack() })
         }
 
         // Clientes
