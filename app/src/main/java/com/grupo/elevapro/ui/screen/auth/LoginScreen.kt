@@ -59,7 +59,6 @@ import androidx.lifecycle.viewModelScope
 import com.grupo.elevapro.data.model.domain.Rol
 import com.grupo.elevapro.data.model.domain.Usuario
 import com.grupo.elevapro.data.repository.AuthRepository
-import com.grupo.elevapro.data.repository.FakeMockData
 import com.grupo.elevapro.ui.theme.Primary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,19 +68,30 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// ── Login state machine ────────────────────────────────────────────────────
+
+sealed interface EstadoLogin {
+    data object Idle : EstadoLogin
+    data object Cargando : EstadoLogin
+    data object Exito : EstadoLogin
+    data class Error(val mensaje: String) : EstadoLogin
+}
+
 data class LoginUiState(
     val empresa: String = "",
     val email: String = "",
     val password: String = "",
     val mostrarPassword: Boolean = false,
-    val cargando: Boolean = false,
-    val error: String? = null,
-    val exito: Boolean = false,
+    val estadoLogin: EstadoLogin = EstadoLogin.Idle,
     val perfilDetectado: Usuario? = null,
 ) {
     val puedeIngresar: Boolean
-        get() = empresa.isNotBlank() && email.isNotBlank() && password.isNotBlank() && !cargando
+        get() = empresa.isNotBlank() && email.isNotBlank() && password.isNotBlank() &&
+                estadoLogin !is EstadoLogin.Cargando
 }
+
+private fun LoginUiState.dismissError() =
+    if (estadoLogin is EstadoLogin.Error) copy(estadoLogin = EstadoLogin.Idle) else this
 
 sealed interface LoginEvent {
     data class EmpresaChange(val value: String) : LoginEvent
@@ -90,6 +100,8 @@ sealed interface LoginEvent {
     data object TogglePassword : LoginEvent
     data object Ingresar : LoginEvent
 }
+
+// ── ViewModel ──────────────────────────────────────────────────────────────
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
@@ -101,17 +113,16 @@ class LoginViewModel @Inject constructor(
 
     fun onEvent(event: LoginEvent) {
         when (event) {
-            is LoginEvent.EmpresaChange -> _estado.update { it.copy(empresa = event.value, error = null) }
-            is LoginEvent.EmailChange -> _estado.update {
+            is LoginEvent.EmpresaChange  -> _estado.update { it.copy(empresa = event.value).dismissError() }
+            is LoginEvent.EmailChange    -> _estado.update {
                 it.copy(
                     email = event.value,
-                    error = null,
-                    perfilDetectado = FakeMockData.usuarioPorEmail(event.value),
-                )
+                    perfilDetectado = authRepository.buscarPerfilPorEmail(event.value),
+                ).dismissError()
             }
-            is LoginEvent.PasswordChange -> _estado.update { it.copy(password = event.value, error = null) }
-            LoginEvent.TogglePassword -> _estado.update { it.copy(mostrarPassword = !it.mostrarPassword) }
-            LoginEvent.Ingresar -> ingresar()
+            is LoginEvent.PasswordChange -> _estado.update { it.copy(password = event.value).dismissError() }
+            LoginEvent.TogglePassword    -> _estado.update { it.copy(mostrarPassword = !it.mostrarPassword) }
+            LoginEvent.Ingresar          -> ingresar()
         }
     }
 
@@ -119,13 +130,15 @@ class LoginViewModel @Inject constructor(
         val s = _estado.value
         if (!s.puedeIngresar) return
         viewModelScope.launch {
-            _estado.update { it.copy(cargando = true) }
+            _estado.update { it.copy(estadoLogin = EstadoLogin.Cargando) }
             authRepository.login(s.empresa, s.email, s.password)
-                .onSuccess { _estado.update { it.copy(cargando = false, exito = true) } }
-                .onFailure { e -> _estado.update { it.copy(cargando = false, error = e.message ?: "Error") } }
+                .onSuccess { _estado.update { it.copy(estadoLogin = EstadoLogin.Exito) } }
+                .onFailure { e -> _estado.update { it.copy(estadoLogin = EstadoLogin.Error(e.message ?: "Error")) } }
         }
     }
 }
+
+// ── Screen ─────────────────────────────────────────────────────────────────
 
 @Composable
 fun LoginScreen(
@@ -134,7 +147,7 @@ fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
-    LaunchedEffect(estado.exito) { if (estado.exito) onLoginOk() }
+    LaunchedEffect(estado.estadoLogin) { if (estado.estadoLogin is EstadoLogin.Exito) onLoginOk() }
     LoginContent(estado = estado, onEvent = viewModel::onEvent, modifier = modifier)
 }
 
@@ -247,12 +260,15 @@ private fun TarjetaFormulario(
                 label = "Contraseña",
                 leadingIcon = Icons.Outlined.Lock,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = if (estado.mostrarPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                visualTransformation = if (estado.mostrarPassword) VisualTransformation.None
+                                       else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { onEvent(LoginEvent.TogglePassword) }) {
                         Icon(
-                            imageVector = if (estado.mostrarPassword) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                            contentDescription = if (estado.mostrarPassword) "Ocultar contraseña" else "Mostrar contraseña",
+                            imageVector = if (estado.mostrarPassword) Icons.Outlined.VisibilityOff
+                                          else Icons.Outlined.Visibility,
+                            contentDescription = if (estado.mostrarPassword) "Ocultar contraseña"
+                                                 else "Mostrar contraseña",
                         )
                     }
                 },
@@ -262,9 +278,9 @@ private fun TarjetaFormulario(
                 PerfilDetectadoPill(perfil = estado.perfilDetectado)
             }
 
-            if (estado.error != null) {
+            if (estado.estadoLogin is EstadoLogin.Error) {
                 Text(
-                    text = estado.error,
+                    text = estado.estadoLogin.mensaje,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -285,7 +301,8 @@ private fun TarjetaFormulario(
                 ),
             ) {
                 Text(
-                    text = if (estado.cargando) "Ingresando…" else "Iniciar sesión",
+                    text = if (estado.estadoLogin is EstadoLogin.Cargando) "Ingresando…"
+                           else "Iniciar sesión",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                 )

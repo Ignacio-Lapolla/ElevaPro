@@ -51,6 +51,13 @@ import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
+sealed interface EstadoGuardado {
+    data object Idle : EstadoGuardado
+    data object Guardando : EstadoGuardado
+    data object Guardado : EstadoGuardado
+    data class Error(val mensaje: String) : EstadoGuardado
+}
+
 private val TIPOS_ORDEN = listOf(
     "Mantenimiento Preventivo",
     "Reparación de Emergencia",
@@ -65,9 +72,7 @@ data class NuevaOrdenUiState(
     val tipo: String = "",
     val plantillaId: String? = null,
     val observaciones: String = "",
-    val guardando: Boolean = false,
-    val guardado: Boolean = false,
-    val error: String? = null,
+    val estadoGuardado: EstadoGuardado = EstadoGuardado.Idle,
 )
 
 @HiltViewModel
@@ -86,19 +91,19 @@ class NuevaOrdenViewModel @Inject constructor(
     val plantillas: StateFlow<List<Plantilla>> = plantillasRepository.observarPlantillas()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun onClienteSeleccionado(id: String)    { _estado.update { it.copy(clienteId = id, error = null) } }
-    fun onTipoSeleccionado(tipo: String)     { _estado.update { it.copy(tipo = tipo, error = null) } }
+    fun onClienteSeleccionado(id: String)    { _estado.update { it.copy(clienteId = id) } }
+    fun onTipoSeleccionado(tipo: String)     { _estado.update { it.copy(tipo = tipo) } }
     fun onPlantillaSeleccionada(id: String?) { _estado.update { it.copy(plantillaId = id) } }
     fun onObservacionesChanged(obs: String)  { _estado.update { it.copy(observaciones = obs) } }
 
     fun onGuardar() {
         val s = _estado.value
         if (s.clienteId.isBlank() || s.tipo.isBlank()) {
-            _estado.update { it.copy(error = "Seleccioná cliente y tipo de orden") }
+            _estado.update { it.copy(estadoGuardado = EstadoGuardado.Error("Seleccioná cliente y tipo de orden")) }
             return
         }
         viewModelScope.launch {
-            _estado.update { it.copy(guardando = true, error = null) }
+            _estado.update { it.copy(estadoGuardado = EstadoGuardado.Guardando) }
             val cliente = clienteRepository.obtenerPorId(s.clienteId)
             val fecha = SimpleDateFormat("dd MMM yyyy", Locale("es")).format(Date())
                 .replace(".", "")
@@ -114,12 +119,12 @@ class NuevaOrdenViewModel @Inject constructor(
                     observaciones = s.observaciones,
                 )
             )
-            _estado.update { it.copy(guardando = false, guardado = true) }
+            _estado.update { it.copy(estadoGuardado = EstadoGuardado.Guardado) }
         }
     }
 
-    fun onGuardadoHandled() { _estado.update { it.copy(guardado = false) } }
-    fun onErrorHandled()    { _estado.update { it.copy(error = null) } }
+    fun onGuardadoHandled() { _estado.update { it.copy(estadoGuardado = EstadoGuardado.Idle) } }
+    fun onErrorHandled()    { _estado.update { it.copy(estadoGuardado = EstadoGuardado.Idle) } }
 }
 
 @Composable
@@ -132,8 +137,8 @@ fun NuevaOrdenScreen(
     val clientes  by viewModel.clientes.collectAsStateWithLifecycle()
     val plantillas by viewModel.plantillas.collectAsStateWithLifecycle()
 
-    LaunchedEffect(estado.guardado) {
-        if (estado.guardado) {
+    LaunchedEffect(estado.estadoGuardado) {
+        if (estado.estadoGuardado is EstadoGuardado.Guardado) {
             viewModel.onGuardadoHandled()
             onBack()
         }
@@ -171,9 +176,10 @@ private fun NuevaOrdenContent(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(estado.error) {
-        estado.error?.let {
-            snackbarHostState.showSnackbar(it)
+    LaunchedEffect(estado.estadoGuardado) {
+        val s = estado.estadoGuardado
+        if (s is EstadoGuardado.Error) {
+            snackbarHostState.showSnackbar(s.mensaje)
             onErrorHandled()
         }
     }
@@ -197,7 +203,7 @@ private fun NuevaOrdenContent(
                 acciones = {
                     TextButton(
                         onClick = onGuardar,
-                        enabled = !estado.guardando,
+                        enabled = estado.estadoGuardado !is EstadoGuardado.Guardando,
                     ) {
                         Text("Guardar")
                     }
@@ -318,7 +324,7 @@ private fun NuevaOrdenContent(
             FilledPrimaryButton(
                 text = "Crear orden",
                 onClick = onGuardar,
-                enabled = !estado.guardando,
+                enabled = estado.estadoGuardado !is EstadoGuardado.Guardando,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
