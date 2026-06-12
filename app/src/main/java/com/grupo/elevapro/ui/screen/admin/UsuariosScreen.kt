@@ -48,7 +48,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.grupo.elevapro.data.model.domain.Rol
 import com.grupo.elevapro.data.model.domain.Usuario
+import com.grupo.elevapro.data.model.domain.permisosDefault
+import com.grupo.elevapro.data.repository.PermisosRepository
 import com.grupo.elevapro.data.repository.UsuariosRepository
+import com.grupo.elevapro.ui.components.ElevaProSearchBar
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.FilledPrimaryButton
 import com.grupo.elevapro.ui.components.FilterChipBar
@@ -75,6 +78,7 @@ sealed interface UsuariosUiState {
     data class Success(
         val usuarios: List<Usuario>,
         val filtro: FiltroUsuario,
+        val busqueda: String,
     ) : UsuariosUiState
     data class Error(val mensaje: String) : UsuariosUiState
 }
@@ -84,37 +88,47 @@ sealed interface UsuariosUiState {
 @HiltViewModel
 class UsuariosViewModel @Inject constructor(
     private val usuariosRepository: UsuariosRepository,
+    private val permisosRepository: PermisosRepository,
 ) : ViewModel() {
 
-    private val filtro = MutableStateFlow(FiltroUsuario.TODOS)
+    private val filtro   = MutableStateFlow(FiltroUsuario.TODOS)
+    private val busqueda = MutableStateFlow("")
 
     val estado: StateFlow<UsuariosUiState> = combine(
         usuariosRepository.observarUsuarios(),
         filtro,
-    ) { lista, f ->
-        val filtrados = when (f) {
-            FiltroUsuario.TODOS          -> lista
-            FiltroUsuario.ADMINISTRADORES -> lista.filter { it.rol == Rol.ADMINISTRADOR }
-            FiltroUsuario.OPERATIVOS      -> lista.filter { it.rol == Rol.OPERATIVO }
-        }
-        UsuariosUiState.Success(filtrados, f) as UsuariosUiState
+        busqueda,
+    ) { lista, f, q ->
+        val filtrados = lista
+            .filter { u ->
+                when (f) {
+                    FiltroUsuario.TODOS           -> true
+                    FiltroUsuario.ADMINISTRADORES -> u.rol == Rol.ADMINISTRADOR
+                    FiltroUsuario.OPERATIVOS      -> u.rol == Rol.OPERATIVO
+                }
+            }
+            .filter { u ->
+                q.isBlank() || u.nombre.contains(q, ignoreCase = true) || u.email.contains(q, ignoreCase = true)
+            }
+        UsuariosUiState.Success(filtrados, f, q) as UsuariosUiState
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UsuariosUiState.Loading)
 
     fun onFiltro(f: FiltroUsuario) { filtro.value = f }
+    fun onBusqueda(q: String) { busqueda.value = q }
 
     fun invitar(nombre: String, email: String, rol: Rol) {
         viewModelScope.launch {
-            usuariosRepository.crear(
-                Usuario(
-                    id = "u${System.currentTimeMillis()}",
-                    nombre = nombre,
-                    email = email,
-                    rol = rol,
-                    numeroEmpresa = "123",
-                    telefono = null,
-                    fotoUrl = null,
-                )
+            val nuevoUsuario = Usuario(
+                id = "u${System.currentTimeMillis()}",
+                nombre = nombre,
+                email = email,
+                rol = rol,
+                numeroEmpresa = "123",
+                telefono = null,
+                fotoUrl = null,
             )
+            usuariosRepository.crear(nuevoUsuario)
+            permisosRepository.actualizar(nuevoUsuario.id, rol.permisosDefault)
         }
     }
 }
@@ -132,6 +146,7 @@ fun UsuariosScreen(
     UsuariosContent(
         estado = estado,
         onFiltro = viewModel::onFiltro,
+        onBusqueda = viewModel::onBusqueda,
         onEditarPermisos = onEditarPermisos,
         onInvitar = viewModel::invitar,
         onBack = onBack,
@@ -146,25 +161,40 @@ fun UsuariosScreen(
 private fun UsuariosContent(
     estado: UsuariosUiState,
     onFiltro: (FiltroUsuario) -> Unit,
+    onBusqueda: (String) -> Unit,
     onEditarPermisos: (String) -> Unit,
     onInvitar: (String, String, Rol) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var mostrarSheet by remember { mutableStateOf(false) }
+    var mostrarBuscador by remember { mutableStateOf(false) }
     val opcionesFiltro = remember { FiltroUsuario.entries.map { it.label } }
+    val busqueda = (estado as? UsuariosUiState.Success)?.busqueda ?: ""
 
     Scaffold(
         topBar = {
-            ElevaProTopAppBar(
-                titulo = "Usuarios",
-                onBack = onBack,
-                acciones = {
-                    IconButton(onClick = {}, enabled = false) {
-                        Icon(Icons.Outlined.Search, contentDescription = "Buscar usuario")
-                    }
-                },
-            )
+            if (mostrarBuscador) {
+                ElevaProSearchBar(
+                    query = busqueda,
+                    onQueryChange = onBusqueda,
+                    onClose = {
+                        mostrarBuscador = false
+                        onBusqueda("")
+                    },
+                    placeholder = "Buscar por nombre o email",
+                )
+            } else {
+                ElevaProTopAppBar(
+                    titulo = "Usuarios",
+                    onBack = onBack,
+                    acciones = {
+                        IconButton(onClick = { mostrarBuscador = true }) {
+                            Icon(Icons.Outlined.Search, contentDescription = "Buscar usuario")
+                        }
+                    },
+                )
+            }
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
