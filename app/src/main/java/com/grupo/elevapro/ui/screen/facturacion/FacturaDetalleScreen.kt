@@ -33,10 +33,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +61,7 @@ import com.grupo.elevapro.data.repository.FacturacionRepository
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.navigation.Screen
 import com.grupo.elevapro.ui.theme.ErrorContainer
+import kotlinx.coroutines.launch
 import com.grupo.elevapro.ui.theme.ErrorRed
 import com.grupo.elevapro.ui.theme.OnErrorContainer
 import com.grupo.elevapro.ui.theme.OnSuccessContainer
@@ -183,7 +188,11 @@ private fun FacturaDetalleContent(
     onRechazar: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val snackbarHost = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
             when (estado) {
                 is FacturaDetalleUiState.Success -> {
@@ -238,7 +247,7 @@ private fun FacturaDetalleContent(
                             }
                         }
                         OutlinedButton(
-                            onClick = {},
+                            onClick = { scope.launch { snackbarHost.showSnackbar("Descarga de PDF próximamente") } },
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(16.dp),
                         ) {
@@ -312,10 +321,10 @@ private fun FacturaDetalleBody(
 
         HorizontalDivider()
 
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        Column(modifier = Modifier.padding(vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
 
             // ── Cliente ───────────────────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionLabel("Cliente")
                 Row(
                     modifier = Modifier
@@ -333,8 +342,10 @@ private fun FacturaDetalleBody(
                 }
             }
 
+            HorizontalDivider()
+
             // ── Datos de facturación ──────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp).padding(top = 20.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionLabel("Datos de facturación")
                 Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), modifier = Modifier.fillMaxWidth()) {
                     Column {
@@ -347,8 +358,10 @@ private fun FacturaDetalleBody(
                 }
             }
 
+            HorizontalDivider()
+
             // ── Detalle económico ─────────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp).padding(top = 20.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionLabel("Detalle económico")
                 Surface(shape = RoundedCornerShape(12.dp), color = Color.White, shadowElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
                     Column {
@@ -378,7 +391,8 @@ private fun FacturaDetalleBody(
 
             // ── CAE (solo si Aprobada) ────────────────────────────────────────
             if (factura.estado == EstadoFactura.APROBADA && factura.cae != null) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                HorizontalDivider()
+                Column(modifier = Modifier.padding(horizontal = 16.dp).padding(top = 20.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionLabel("Autorización AFIP / ARCA")
                     Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), modifier = Modifier.fillMaxWidth()) {
                         Column {
@@ -402,8 +416,9 @@ private fun FacturaDetalleBody(
 
             // ── Mensaje Pendiente ─────────────────────────────────────────────
             if (factura.estado == EstadoFactura.PENDIENTE) {
+                HorizontalDivider()
                 Row(
-                    modifier = Modifier.fillMaxWidth().background(Color(0xFFFEF3C7), RoundedCornerShape(12.dp)).padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp).background(Color(0xFFFEF3C7), RoundedCornerShape(12.dp)).padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
@@ -414,7 +429,8 @@ private fun FacturaDetalleBody(
 
             // ── Órdenes asociadas ─────────────────────────────────────────────
             if (factura.ordenesIds.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                HorizontalDivider()
+                Column(modifier = Modifier.padding(horizontal = 16.dp).padding(top = 20.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionLabel("Órdenes de trabajo asociadas (${factura.ordenesIds.size})")
                     factura.ordenesIds.forEach { ordenId ->
                         Row(
@@ -443,9 +459,10 @@ private fun FacturaDetalleBody(
 
             // ── Botón Rechazar (solo admin + pendiente) ───────────────────────
             if (estado.esAdmin && factura.estado == EstadoFactura.PENDIENTE) {
+                HorizontalDivider()
                 OutlinedButton(
                     onClick = onRechazar,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp).height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) {

@@ -120,15 +120,16 @@ class OrdenesViewModel @Inject constructor(
     private val busqueda = MutableStateFlow("")
     private val filtroAvanzado = MutableStateFlow(FiltroAvanzado())
 
+    private val supervisores: StateFlow<List<Supervisor>> = supervisoresRepo.observarSupervisores()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     val estado: StateFlow<OrdenesUiState> = combine(
         ordenesRepo.observarOrdenes(),
         clientesRepo.observarClientes(),
-        supervisoresRepo.observarSupervisores(),
         filtro,
         busqueda,
-    ) { lista, clientes, supervisores, filtroActual, q ->
-        // combine only takes up to 5 flows, inject filtroAvanzado value directly
-        val fa = filtroAvanzado.value
+        filtroAvanzado,
+    ) { lista, clientes, filtroActual, q, fa ->
         val filtradas = lista.filter { orden ->
             val matchBusqueda = q.isBlank() ||
                 orden.clienteNombre.contains(q, ignoreCase = true) ||
@@ -152,7 +153,7 @@ class OrdenesViewModel @Inject constructor(
             totalFirmadas = lista.count { it.firmada },
             totalSinFirmar = lista.count { !it.firmada },
             clientes = clientes,
-            supervisores = supervisores,
+            supervisores = supervisores.value,
         ) as OrdenesUiState
     }.stateIn(
         scope = viewModelScope,
