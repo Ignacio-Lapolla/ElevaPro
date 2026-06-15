@@ -1,10 +1,15 @@
 package com.grupo.elevapro.ui.screen.ordenes
 
+import android.content.Context
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,9 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Image
@@ -55,26 +58,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import com.grupo.elevapro.ui.util.PdfGenerator
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import coil.compose.AsyncImage
 import com.grupo.elevapro.data.model.domain.Orden
 import com.grupo.elevapro.data.repository.OrdenesRepository
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.StatusChip
 import com.grupo.elevapro.ui.components.TipoEstado
-import com.grupo.elevapro.ui.theme.SuccessContainer
 import com.grupo.elevapro.ui.navigation.Screen
+import com.grupo.elevapro.ui.theme.SuccessContainer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 sealed interface DetalleUiState {
@@ -86,7 +97,7 @@ sealed interface DetalleUiState {
 @HiltViewModel
 class OrdenDetalleViewModel @Inject constructor(
     private val repo: OrdenesRepository,
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val id: String = checkNotNull(savedStateHandle[Screen.OrdenDetalle.ARG_ID])
@@ -97,10 +108,33 @@ class OrdenDetalleViewModel @Inject constructor(
             if (orden != null) DetalleUiState.Success(orden) else DetalleUiState.Error("Orden no encontrada")
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetalleUiState.Loading)
+
+    // Ruta del archivo temporal de cámara sobrevive recreaciones de Activity vía SavedStateHandle.
+    var rutaFotoTemporal: String?
+        get() = savedStateHandle["foto_temp"]
+        set(value) { savedStateHandle["foto_temp"] = value }
+
+    fun agregarFoto(ruta: String) {
+        viewModelScope.launch { repo.agregarFoto(id, ruta) }
+    }
+
+    fun eliminarFoto(ruta: String) {
+        viewModelScope.launch { repo.eliminarFoto(id, ruta) }
+    }
 }
 
-// Fotos mock para la demo
-private data class FotoMock(val label: String, val bg: androidx.compose.ui.graphics.Color, val tint: androidx.compose.ui.graphics.Color)
+// ── Helpers de cámara ───────────────────────────────────────────────────────
+
+private fun crearArchivoFoto(context: Context): File {
+    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val dir = File(context.getExternalFilesDir("Pictures"), "ordenes").also { it.mkdirs() }
+    return File(dir, "foto_$timestamp.jpg")
+}
+
+private fun uriParaFoto(context: Context, archivo: File): Uri =
+    FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", archivo)
+
+// ── Screen ───────────────────────────────────────────────────────────────────
 
 @Composable
 fun OrdenDetalleScreen(
@@ -111,10 +145,14 @@ fun OrdenDetalleScreen(
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     OrdenDetalleContent(
-        estado   = estado,
-        onBack   = onBack,
-        onFirmar = onFirmar,
-        modifier = modifier,
+        estado           = estado,
+        onBack           = onBack,
+        onFirmar         = onFirmar,
+        onAgregarFoto    = viewModel::agregarFoto,
+        onEliminarFoto   = viewModel::eliminarFoto,
+        rutaFotoTemporal = viewModel.rutaFotoTemporal,
+        onSetRutaTemp    = { viewModel.rutaFotoTemporal = it },
+        modifier         = modifier,
     )
 }
 
@@ -123,12 +161,17 @@ private fun OrdenDetalleContent(
     estado: DetalleUiState,
     onBack: () -> Unit,
     onFirmar: (String) -> Unit,
+    onAgregarFoto: (String) -> Unit,
+    onEliminarFoto: (String) -> Unit,
+    rutaFotoTemporal: String?,
+    onSetRutaTemp: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val titulo = (estado as? DetalleUiState.Success)?.let { "Orden ${it.orden.numero}" } ?: "Detalle"
     val snackbarHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var mostrarVistaPRevia by remember { mutableStateOf(false) }
+    var mostrarVistaPrevia by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = { ElevaProTopAppBar(titulo = titulo, onBack = onBack) },
@@ -148,12 +191,7 @@ private fun OrdenDetalleContent(
             )
 
             is DetalleUiState.Success -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                ) {
-                    // Cuerpo scrollable
+                Column(modifier = Modifier.fillMaxSize().padding(padding)) {
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -161,10 +199,15 @@ private fun OrdenDetalleContent(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        OrdenDetalleBody(orden = s.orden)
+                        OrdenDetalleBody(
+                            orden            = s.orden,
+                            onAgregarFoto    = onAgregarFoto,
+                            onEliminarFoto   = onEliminarFoto,
+                            rutaFotoTemporal = rutaFotoTemporal,
+                            onSetRutaTemp    = onSetRutaTemp,
+                        )
                     }
 
-                    // Barra de acciones fija abajo
                     HorizontalDivider()
                     Row(
                         modifier = Modifier
@@ -172,9 +215,8 @@ private fun OrdenDetalleContent(
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        // Vista previa
                         FilledTonalButton(
-                            onClick = { mostrarVistaPRevia = true },
+                            onClick = { mostrarVistaPrevia = true },
                             modifier = Modifier.weight(1f),
                         ) {
                             Icon(Icons.Outlined.RemoveRedEye, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -182,7 +224,6 @@ private fun OrdenDetalleContent(
                             Text("Vista previa", style = MaterialTheme.typography.labelMedium)
                         }
 
-                        // Capturar firma
                         FilledTonalButton(
                             onClick = { if (!s.orden.firmada) onFirmar(s.orden.id) },
                             enabled = !s.orden.firmada,
@@ -202,10 +243,16 @@ private fun OrdenDetalleContent(
                             )
                         }
 
-                        // Descargar PDF
                         Button(
                             onClick = {
-                                scope.launch { snackbarHost.showSnackbar("Descarga de PDF próximamente") }
+                                scope.launch {
+                                    runCatching {
+                                        val uri = PdfGenerator.generarOrden(context, s.orden)
+                                        PdfGenerator.abrir(context, uri)
+                                    }.onFailure {
+                                        snackbarHost.showSnackbar("Error al generar PDF")
+                                    }
+                                }
                             },
                             modifier = Modifier.weight(1f),
                         ) {
@@ -216,13 +263,19 @@ private fun OrdenDetalleContent(
                     }
                 }
 
-                // Vista previa overlay
-                if (mostrarVistaPRevia) {
+                if (mostrarVistaPrevia) {
                     VistaPreviaOverlay(
                         orden = s.orden,
-                        onBack = { mostrarVistaPRevia = false },
+                        onBack = { mostrarVistaPrevia = false },
                         onDescargar = {
-                            scope.launch { snackbarHost.showSnackbar("Descarga de PDF próximamente") }
+                            scope.launch {
+                                runCatching {
+                                    val uri = PdfGenerator.generarOrden(context, s.orden)
+                                    PdfGenerator.abrir(context, uri)
+                                }.onFailure {
+                                    snackbarHost.showSnackbar("Error al generar PDF")
+                                }
+                            }
                         },
                     )
                 }
@@ -231,12 +284,17 @@ private fun OrdenDetalleContent(
     }
 }
 
+// ── Body ─────────────────────────────────────────────────────────────────────
+
 @Composable
 private fun OrdenDetalleBody(
     orden: Orden,
+    onAgregarFoto: (String) -> Unit,
+    onEliminarFoto: (String) -> Unit,
+    rutaFotoTemporal: String?,
+    onSetRutaTemp: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Info general
     ElevatedCard(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -252,8 +310,38 @@ private fun OrdenDetalleBody(
         }
     }
 
-    // Imágenes adjuntas (mock para H1)
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    FotosAdjuntasCard(
+        fotos            = orden.fotos,
+        onAgregarFoto    = onAgregarFoto,
+        onEliminarFoto   = onEliminarFoto,
+        rutaFotoTemporal = rutaFotoTemporal,
+        onSetRutaTemp    = onSetRutaTemp,
+    )
+
+    FirmaCard(orden = orden)
+}
+
+// ── Fotos adjuntas ────────────────────────────────────────────────────────────
+
+@Composable
+private fun FotosAdjuntasCard(
+    fotos: List<String>,
+    onAgregarFoto: (String) -> Unit,
+    onEliminarFoto: (String) -> Unit,
+    rutaFotoTemporal: String?,
+    onSetRutaTemp: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (ok) {
+            rutaFotoTemporal?.let { ruta -> onAgregarFoto(ruta) }
+        }
+        onSetRutaTemp(null)
+    }
+
+    ElevatedCard(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -275,85 +363,101 @@ private fun OrdenDetalleBody(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    "3 fotos",
+                    "${fotos.size} foto${if (fotos.size != 1) "s" else ""}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline,
                 )
             }
 
-            val fotos = listOf(
-                "Cuarto de máquinas" to MaterialTheme.colorScheme.tertiaryContainer,
-                "Panel eléctrico"    to MaterialTheme.colorScheme.primaryContainer,
-                "Cabina interior"    to MaterialTheme.colorScheme.secondaryContainer,
-            )
-
-            // Grid 3 columnas con height fija para evitar infinite constraints
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                fotos.forEach { (label, color) ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(color),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Icon(
-                                Icons.Outlined.CameraAlt,
-                                contentDescription = label,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(22.dp),
-                            )
-                            Text(
-                                label,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 4.dp),
-                            )
+            // Grid de fotos reales + botón agregar
+            val items = fotos + listOf("__agregar__")
+            val filas = items.chunked(3)
+            filas.forEach { fila ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    fila.forEach { item ->
+                        if (item == "__agregar__") {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(2.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        val archivo = crearArchivoFoto(context)
+                                        onSetRutaTemp(archivo.absolutePath)
+                                        launcher.launch(uriParaFoto(context, archivo))
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Add,
+                                        contentDescription = "Agregar foto",
+                                        tint = MaterialTheme.colorScheme.outline,
+                                        modifier = Modifier.size(22.dp),
+                                    )
+                                    Text(
+                                        "Agregar",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(12.dp)),
+                            ) {
+                                AsyncImage(
+                                    model = File(item),
+                                    contentDescription = "Foto adjunta",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                                // Botón eliminar sobre la foto
+                                IconButton(
+                                    onClick = { onEliminarFoto(item) },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(28.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                            RoundedCornerShape(bottomStart = 8.dp),
+                                        ),
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Close,
+                                        contentDescription = "Eliminar foto",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
                         }
                     }
-                }
-
-                // Agregar
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(2.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            Icons.Outlined.Add,
-                            contentDescription = "Agregar foto",
-                            tint = MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.size(22.dp),
-                        )
-                        Text(
-                            "Agregar",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline,
-                        )
+                    // Rellena celdas vacías en la última fila para alinear
+                    repeat(3 - fila.size) {
+                        Box(modifier = Modifier.weight(1f).aspectRatio(1f))
                     }
                 }
             }
         }
     }
+}
 
-    // Firma
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+// ── Firma ─────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun FirmaCard(orden: Orden, modifier: Modifier = Modifier) {
+    ElevatedCard(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -405,6 +509,8 @@ private fun OrdenDetalleBody(
     }
 }
 
+// ── Vista previa ──────────────────────────────────────────────────────────────
+
 @Composable
 private fun VistaPreviaOverlay(
     orden: Orden,
@@ -412,17 +518,11 @@ private fun VistaPreviaOverlay(
     onDescargar: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surface,
-    ) {
+    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column {
-            // TopAppBar del overlay
             Column {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onBack) {
@@ -447,7 +547,6 @@ private fun VistaPreviaOverlay(
                 HorizontalDivider()
             }
 
-            // Documento
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -456,7 +555,6 @@ private fun VistaPreviaOverlay(
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                    // Cabecera del documento
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -490,11 +588,7 @@ private fun VistaPreviaOverlay(
 
                     HorizontalDivider()
 
-                    // Datos de la orden
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
                             "DATOS DE LA ORDEN",
                             style = MaterialTheme.typography.labelSmall,
@@ -512,7 +606,6 @@ private fun VistaPreviaOverlay(
 
                     HorizontalDivider()
 
-                    // Estado firma
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             "FIRMA DEL CLIENTE",
@@ -545,20 +638,9 @@ private fun VistaPreviaOverlay(
 }
 
 @Composable
-private fun InfoRow(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
+private fun InfoRow(label: String, value: String, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = value, style = MaterialTheme.typography.bodyMedium)
     }
 }
