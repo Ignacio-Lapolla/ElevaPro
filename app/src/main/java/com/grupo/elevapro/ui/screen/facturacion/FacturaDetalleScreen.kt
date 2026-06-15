@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -77,6 +78,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.grupo.elevapro.ui.util.PdfGenerator
 import javax.inject.Inject
 
 sealed interface FacturaDetalleUiState {
@@ -188,6 +190,7 @@ private fun FacturaDetalleContent(
     onRechazar: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val snackbarHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -247,7 +250,16 @@ private fun FacturaDetalleContent(
                             }
                         }
                         OutlinedButton(
-                            onClick = { scope.launch { snackbarHost.showSnackbar("Descarga de PDF próximamente") } },
+                            onClick = {
+                                scope.launch {
+                                    runCatching {
+                                        val uri = PdfGenerator.generarFactura(context, estado.factura)
+                                        PdfGenerator.abrir(context, uri)
+                                    }.onFailure {
+                                        snackbarHost.showSnackbar("Error al generar PDF")
+                                    }
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(16.dp),
                         ) {
