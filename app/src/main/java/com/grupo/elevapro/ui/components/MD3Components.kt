@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material.icons.Icons
@@ -52,42 +53,44 @@ fun ElevaProTopAppBar(
     acciones: @Composable RowScope.() -> Unit = {},
     navigationIcon: (@Composable () -> Unit)? = null,
 ) {
-    TopAppBar(
-        title = {
-            Column {
-                Text(
-                    titulo,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                if (subtitulo != null) {
+    Column(modifier = modifier) {
+        TopAppBar(
+            title = {
+                Column {
                     Text(
-                        subtitulo,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        titulo,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
+                    if (subtitulo != null) {
+                        Text(
+                            subtitulo,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-            }
-        },
-        navigationIcon = {
-            when {
-                navigationIcon != null -> navigationIcon()
-                onBack != null -> IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Volver",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            },
+            navigationIcon = {
+                when {
+                    navigationIcon != null -> navigationIcon()
+                    onBack != null -> IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-            }
-        },
-        actions = acciones,
-        modifier = modifier,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        ),
-    )
+            },
+            actions = acciones,
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ),
+        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
 }
 
 @Composable

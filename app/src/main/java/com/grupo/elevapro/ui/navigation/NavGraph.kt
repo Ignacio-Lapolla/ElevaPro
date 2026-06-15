@@ -157,7 +157,10 @@ fun NavGraph(
             UsuarioPermisosScreen(onBack = { navController.popBackStack() })
         }
         composable(Screen.RolesPermisos.route) {
-            RolesPermisosScreen(onBack = { navController.popBackStack() })
+            RolesPermisosScreen(
+                onBack = { navController.popBackStack() },
+                onModificarPermisos = { id -> navController.navigate(Screen.UsuarioPermisos.build(id)) },
+            )
         }
         composable(Screen.Supervisores.route) {
             SupervisoresScreen(onBack = { navController.popBackStack() })
@@ -198,10 +201,18 @@ fun NavGraph(
             AyudaSoporteScreen(onBack = { navController.popBackStack() })
         }
         composable(Screen.Opciones.route) {
+            val bottomNavRoutes = setOf(Screen.Ordenes.route, Screen.Clientes.route, Screen.Articulos.route)
             OpcionesScreen(
                 onNavTo = { ruta ->
-                    navController.navigate(ruta) {
-                        popUpTo(Screen.Perfil.route) { inclusive = false }
+                    if (ruta in bottomNavRoutes) {
+                        // Tratar igual que la BottomNav para no romper el backstack
+                        navController.navigate(ruta) {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    } else {
+                        navController.navigate(ruta)
                     }
                 },
                 onBack = { navController.popBackStack() },
