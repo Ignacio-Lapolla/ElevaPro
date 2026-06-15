@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
@@ -80,6 +81,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import com.grupo.elevapro.data.util.NetworkMonitor
 import javax.inject.Inject
 
 enum class FiltroOrden(val label: String) { TODAS("Todas"), FIRMADAS("Firmadas"), SIN_FIRMAR("Sin Firmar") }
@@ -106,6 +108,7 @@ sealed interface OrdenesUiState {
         val clientes: List<Cliente>,
         val supervisores: List<Supervisor>,
     ) : OrdenesUiState
+    data object SinConexion : OrdenesUiState
     data class Error(val mensaje: String) : OrdenesUiState
 }
 
@@ -114,6 +117,7 @@ class OrdenesViewModel @Inject constructor(
     private val ordenesRepo: OrdenesRepository,
     private val clientesRepo: ClienteRepository,
     private val supervisoresRepo: SupervisoresRepository,
+    private val networkMonitor: NetworkMonitor,
 ) : ViewModel() {
 
     private val filtro = MutableStateFlow(FiltroOrden.TODAS)
@@ -123,13 +127,17 @@ class OrdenesViewModel @Inject constructor(
     private val supervisores: StateFlow<List<Supervisor>> = supervisoresRepo.observarSupervisores()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    private val isOnline = networkMonitor.isOnline
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     val estado: StateFlow<OrdenesUiState> = combine(
         ordenesRepo.observarOrdenes(),
         clientesRepo.observarClientes(),
         filtro,
         busqueda,
-        filtroAvanzado,
-    ) { lista, clientes, filtroActual, q, fa ->
+        combine(filtroAvanzado, isOnline) { fa, online -> fa to online },
+    ) { lista, clientes, filtroActual, q, (fa, online) ->
+        if (!online && lista.isEmpty()) return@combine OrdenesUiState.SinConexion
         val filtradas = lista.filter { orden ->
             val matchBusqueda = q.isBlank() ||
                 orden.clienteNombre.contains(q, ignoreCase = true) ||
@@ -277,7 +285,6 @@ private fun OrdenesContent(
                 onSeleccion = { label -> onFiltro(FiltroOrden.entries.first { it.label == label }) },
             )
 
-            // Chips de filtros activos
             if (fa.activos > 0 && estado is OrdenesUiState.Success) {
                 Row(
                     modifier = Modifier
@@ -333,6 +340,7 @@ private fun OrdenesContent(
 
             when (estado) {
                 OrdenesUiState.Loading -> Text("Cargando…", modifier = Modifier.padding(16.dp))
+                OrdenesUiState.SinConexion -> BannerSinConexion()
                 is OrdenesUiState.Error -> Text(
                     text = estado.mensaje,
                     color = MaterialTheme.colorScheme.error,
@@ -576,5 +584,29 @@ private fun OrdenCard(orden: Orden, onClick: () -> Unit, modifier: Modifier = Mo
                 tint = MaterialTheme.colorScheme.outline,
             )
         }
+    }
+}
+
+@Composable
+private fun BannerSinConexion(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            Icons.Outlined.WifiOff,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            text = "Sin conexión · Mostrando datos guardados",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
     }
 }
