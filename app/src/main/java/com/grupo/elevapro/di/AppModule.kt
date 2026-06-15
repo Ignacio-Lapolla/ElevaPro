@@ -10,8 +10,8 @@ import com.grupo.elevapro.data.repository.FakeClienteRepository
 import com.grupo.elevapro.data.repository.FakeEmpresaRepository
 import com.grupo.elevapro.data.repository.FakeFacturacionRepository
 import com.grupo.elevapro.data.repository.FakeNotificacionesRepository
-import com.grupo.elevapro.data.repository.FakeOrdenesRepository
-import com.grupo.elevapro.data.repository.FakePermisosRepository
+import com.grupo.elevapro.data.repository.RoomOrdenesRepository
+import com.grupo.elevapro.data.repository.RoomPermisosRepository
 import com.grupo.elevapro.data.repository.FakePlantillasRepository
 import com.grupo.elevapro.data.repository.FakeSupervisoresRepository
 import com.grupo.elevapro.data.repository.FakeUsuariosRepository
@@ -36,7 +36,7 @@ abstract class AppModule {
     abstract fun bindAuthRepository(impl: FakeAuthRepository): AuthRepository
 
     @Binds @Singleton
-    abstract fun bindOrdenesRepository(impl: FakeOrdenesRepository): OrdenesRepository
+    abstract fun bindOrdenesRepository(impl: RoomOrdenesRepository): OrdenesRepository
 
     @Binds @Singleton
     abstract fun bindArticulosRepository(impl: FakeArticulosRepository): ArticulosRepository
@@ -63,5 +63,5 @@ abstract class AppModule {
     abstract fun bindEmpresaRepository(impl: FakeEmpresaRepository): EmpresaRepository
 
     @Binds @Singleton
-    abstract fun bindPermisosRepository(impl: FakePermisosRepository): PermisosRepository
+    abstract fun bindPermisosRepository(impl: RoomPermisosRepository): PermisosRepository
 }

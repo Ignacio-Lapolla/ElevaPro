@@ -106,6 +106,7 @@ sealed interface LoginEvent {
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val permisosRepository: com.grupo.elevapro.data.repository.PermisosRepository,
 ) : ViewModel() {
 
     private val _estado = MutableStateFlow(LoginUiState())
@@ -132,7 +133,10 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _estado.update { it.copy(estadoLogin = EstadoLogin.Cargando) }
             authRepository.login(s.empresa, s.email, s.password)
-                .onSuccess { _estado.update { it.copy(estadoLogin = EstadoLogin.Exito) } }
+                .onSuccess { usuario ->
+                    permisosRepository.inicializarSiVacio(usuario.id, usuario.rol)
+                    _estado.update { it.copy(estadoLogin = EstadoLogin.Exito) }
+                }
                 .onFailure { e -> _estado.update { it.copy(estadoLogin = EstadoLogin.Error(e.message ?: "Error")) } }
         }
     }
