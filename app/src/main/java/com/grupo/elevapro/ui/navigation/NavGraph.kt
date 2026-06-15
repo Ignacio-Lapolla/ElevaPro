@@ -157,7 +157,10 @@ fun NavGraph(
             UsuarioPermisosScreen(onBack = { navController.popBackStack() })
         }
         composable(Screen.RolesPermisos.route) {
-            RolesPermisosScreen(onBack = { navController.popBackStack() })
+            RolesPermisosScreen(
+                onBack = { navController.popBackStack() },
+                onModificarPermisos = { id -> navController.navigate(Screen.UsuarioPermisos.build(id)) },
+            )
         }
         composable(Screen.Supervisores.route) {
             SupervisoresScreen(onBack = { navController.popBackStack() })
