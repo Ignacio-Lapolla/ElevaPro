@@ -6,7 +6,7 @@ import com.grupo.elevapro.data.repository.ClienteRepository
 import com.grupo.elevapro.data.repository.EmpresaRepository
 import com.grupo.elevapro.data.repository.FakeArticulosRepository
 import com.grupo.elevapro.data.repository.FakeAuthRepository
-import com.grupo.elevapro.data.repository.FakeClienteRepository
+import com.grupo.elevapro.data.repository.RoomClienteRepository
 import com.grupo.elevapro.data.repository.FakeEmpresaRepository
 import com.grupo.elevapro.data.repository.FakeFacturacionRepository
 import com.grupo.elevapro.data.repository.FakeNotificacionesRepository
@@ -45,7 +45,7 @@ abstract class AppModule {
     abstract fun bindNotificacionesRepository(impl: FakeNotificacionesRepository): NotificacionesRepository
 
     @Binds @Singleton
-    abstract fun bindClienteRepository(impl: FakeClienteRepository): ClienteRepository
+    abstract fun bindClienteRepository(impl: RoomClienteRepository): ClienteRepository
 
     @Binds @Singleton
     abstract fun bindFacturacionRepository(impl: FakeFacturacionRepository): FacturacionRepository
