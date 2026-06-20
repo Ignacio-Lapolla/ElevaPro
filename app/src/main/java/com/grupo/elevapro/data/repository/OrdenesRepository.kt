@@ -5,9 +5,8 @@ import com.google.gson.reflect.TypeToken
 import com.grupo.elevapro.data.local.datasource.OrdenLocalDataSource
 import com.grupo.elevapro.data.local.entity.OrdenEntity
 import com.grupo.elevapro.data.model.domain.Orden
+import com.grupo.elevapro.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -28,12 +27,12 @@ interface OrdenesRepository {
 @Singleton
 class RoomOrdenesRepository @Inject constructor(
     private val local: OrdenLocalDataSource,
+    @ApplicationScope private val scope: CoroutineScope,
 ) : OrdenesRepository {
 
     private val gson = Gson()
     private val listType = object : TypeToken<List<String>>() {}.type
     private val seedMutex = Mutex()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
         scope.launch {
