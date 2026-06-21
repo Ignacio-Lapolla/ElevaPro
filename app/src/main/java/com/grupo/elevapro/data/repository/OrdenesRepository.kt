@@ -1,10 +1,17 @@
 package com.grupo.elevapro.data.repository
 
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.grupo.elevapro.data.local.datasource.OrdenLocalDataSource
+import com.grupo.elevapro.data.local.entity.OrdenEntity
 import com.grupo.elevapro.data.model.domain.Orden
+import com.grupo.elevapro.di.ApplicationScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -13,30 +20,72 @@ interface OrdenesRepository {
     suspend fun obtenerPorId(id: String): Orden?
     suspend fun crear(orden: Orden)
     suspend fun firmar(id: String, firmaBase64: String, nombreFirmante: String)
+    suspend fun agregarFoto(id: String, rutaFoto: String)
+    suspend fun eliminarFoto(id: String, rutaFoto: String)
 }
 
 @Singleton
-class FakeOrdenesRepository @Inject constructor() : OrdenesRepository {
+class RoomOrdenesRepository @Inject constructor(
+    private val local: OrdenLocalDataSource,
+    @ApplicationScope private val scope: CoroutineScope,
+) : OrdenesRepository {
 
-    private val _ordenes = MutableStateFlow(FakeMockData.ordenes)
+    private val gson = Gson()
+    private val listType = object : TypeToken<List<String>>() {}.type
+    private val seedMutex = Mutex()
 
-    override fun observarOrdenes(): Flow<List<Orden>> = _ordenes.asStateFlow()
-
-    override suspend fun obtenerPorId(id: String): Orden? = _ordenes.value.find { it.id == id }
-
-    override suspend fun crear(orden: Orden) {
-        _ordenes.update { it + orden }
-    }
-
-    override suspend fun firmar(id: String, firmaBase64: String, nombreFirmante: String) {
-        _ordenes.update { lista ->
-            lista.map { orden ->
-                if (orden.id == id) {
-                    orden.copy(firmada = true, firmaBase64 = firmaBase64, nombreFirmante = nombreFirmante)
-                } else {
-                    orden
+    init {
+        scope.launch {
+            seedMutex.withLock {
+                if (local.contar() == 0) {
+                    local.insertar(FakeMockData.ordenes.map { it.toEntity() })
                 }
             }
         }
     }
+
+    override fun observarOrdenes(): Flow<List<Orden>> =
+        local.observarTodas().map { entities -> entities.map { it.toDomain() } }
+
+    override suspend fun obtenerPorId(id: String): Orden? =
+        local.obtenerPorId(id)?.toDomain()
+
+    override suspend fun crear(orden: Orden) {
+        local.insertarUna(orden.toEntity())
+    }
+
+    override suspend fun firmar(id: String, firmaBase64: String, nombreFirmante: String) {
+        val entity = local.obtenerPorId(id) ?: return
+        local.actualizar(entity.copy(firmada = true, firmaBase64 = firmaBase64, nombreFirmante = nombreFirmante))
+    }
+
+    override suspend fun agregarFoto(id: String, rutaFoto: String) {
+        val entity = local.obtenerPorId(id) ?: return
+        val fotos = parseFotos(entity.fotosJson).toMutableList()
+        if (rutaFoto !in fotos) fotos.add(rutaFoto)
+        local.actualizar(entity.copy(fotosJson = gson.toJson(fotos)))
+    }
+
+    override suspend fun eliminarFoto(id: String, rutaFoto: String) {
+        val entity = local.obtenerPorId(id) ?: return
+        val fotos = parseFotos(entity.fotosJson).filter { it != rutaFoto }
+        local.actualizar(entity.copy(fotosJson = gson.toJson(fotos)))
+    }
+
+    private fun parseFotos(json: String): List<String> =
+        runCatching { gson.fromJson<List<String>>(json, listType) }.getOrDefault(emptyList())
+
+    private fun Orden.toEntity() = OrdenEntity(
+        id = id, numero = numero, clienteId = clienteId, clienteNombre = clienteNombre,
+        fecha = fecha, tipo = tipo, plantillaId = plantillaId, observaciones = observaciones,
+        firmada = firmada, firmaBase64 = firmaBase64, nombreFirmante = nombreFirmante,
+        facturado = facturado, fotosJson = "[]",
+    )
+
+    private fun OrdenEntity.toDomain() = Orden(
+        id = id, numero = numero, clienteId = clienteId, clienteNombre = clienteNombre,
+        fecha = fecha, tipo = tipo, plantillaId = plantillaId, observaciones = observaciones,
+        firmada = firmada, firmaBase64 = firmaBase64, nombreFirmante = nombreFirmante,
+        facturado = facturado, fotos = parseFotos(fotosJson),
+    )
 }

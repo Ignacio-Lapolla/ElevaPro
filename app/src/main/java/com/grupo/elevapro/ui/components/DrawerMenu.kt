@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.grupo.elevapro.data.model.domain.Permiso
 import com.grupo.elevapro.data.model.domain.Rol
 import com.grupo.elevapro.data.model.domain.Usuario
 import com.grupo.elevapro.ui.navigation.Screen
@@ -50,6 +51,7 @@ import com.grupo.elevapro.ui.navigation.Screen
 @Composable
 fun ElevaProDrawerContent(
     usuario: Usuario?,
+    permisos: Set<Permiso>,
     currentRoute: String?,
     navController: NavController,
     onLogout: () -> Unit,
@@ -68,24 +70,30 @@ fun ElevaProDrawerContent(
                 .verticalScroll(rememberScrollState()),
         ) {
             DrawerSection(titulo = "PRINCIPAL") {
-                DrawerItem(
-                    icon = Icons.Outlined.Description,
-                    label = "Órdenes de Trabajo",
-                    isActive = currentRoute == Screen.Ordenes.route,
-                    onClick = { navController.navigateSingleTop(Screen.Ordenes.route); onClose() },
-                )
-                DrawerItem(
-                    icon = Icons.Outlined.People,
-                    label = "Clientes",
-                    isActive = currentRoute == Screen.Clientes.route,
-                    onClick = { navController.navigateSingleTop(Screen.Clientes.route); onClose() },
-                )
-                DrawerItem(
-                    icon = Icons.Outlined.Receipt,
-                    label = "Ver Facturas",
-                    isActive = currentRoute == Screen.Facturacion.route,
-                    onClick = { navController.navigateSingleTop(Screen.Facturacion.route); onClose() },
-                )
+                if (Permiso.VER_ORDENES in permisos) {
+                    DrawerItem(
+                        icon = Icons.Outlined.Description,
+                        label = "Órdenes de Trabajo",
+                        isActive = currentRoute == Screen.Ordenes.route,
+                        onClick = { navController.navigateSingleTop(Screen.Ordenes.route); onClose() },
+                    )
+                }
+                if (Permiso.VER_CLIENTES in permisos) {
+                    DrawerItem(
+                        icon = Icons.Outlined.People,
+                        label = "Clientes",
+                        isActive = currentRoute == Screen.Clientes.route,
+                        onClick = { navController.navigateSingleTop(Screen.Clientes.route); onClose() },
+                    )
+                }
+                if (Permiso.VER_FACTURAS in permisos) {
+                    DrawerItem(
+                        icon = Icons.Outlined.Receipt,
+                        label = "Ver Facturas",
+                        isActive = currentRoute == Screen.Facturacion.route,
+                        onClick = { navController.navigateSingleTop(Screen.Facturacion.route); onClose() },
+                    )
+                }
                 DrawerItem(
                     icon = Icons.AutoMirrored.Outlined.Article,
                     label = "Plantillas de Trabajo",

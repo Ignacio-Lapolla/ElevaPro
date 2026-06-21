@@ -100,19 +100,20 @@ class DatosEmpresaViewModel @Inject constructor(
         .map { DatosEmpresaUiState.Success(it) as DatosEmpresaUiState }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DatosEmpresaUiState.Loading)
 
-    init {
-        // El repositorio reactivo provee los datos de empresa al suscribirse.
-        // Para H2: aquí se llamaría a sincronizar() contra el backend.
-    }
-
     private val _guardadoExitoso = MutableStateFlow(false)
     val guardadoExitoso: StateFlow<Boolean> = _guardadoExitoso.asStateFlow()
 
     private val _certNombre = MutableStateFlow<String?>(null)
     val certNombre: StateFlow<String?> = _certNombre.asStateFlow()
 
-    fun onEmpresaCargada(empresa: Empresa) {
-        _certNombre.value = empresa.certificadoAfipNombre
+    init {
+        viewModelScope.launch {
+            empresaRepository.observar().collect { empresa ->
+                if (_certNombre.value == null && empresa.certificadoAfipNombre != null) {
+                    _certNombre.value = empresa.certificadoAfipNombre
+                }
+            }
+        }
     }
 
     fun toggleCertificado() {
@@ -162,12 +163,6 @@ fun DatosEmpresaScreen(
     val estado          by viewModel.estado.collectAsStateWithLifecycle()
     val guardadoExitoso by viewModel.guardadoExitoso.collectAsStateWithLifecycle()
     val certNombre      by viewModel.certNombre.collectAsStateWithLifecycle()
-
-    LaunchedEffect(estado) {
-        if (estado is DatosEmpresaUiState.Success) {
-            viewModel.onEmpresaCargada((estado as DatosEmpresaUiState.Success).empresa)
-        }
-    }
 
     DatosEmpresaContent(
         estado            = estado,

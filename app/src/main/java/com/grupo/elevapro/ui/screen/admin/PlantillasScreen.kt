@@ -30,7 +30,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -101,6 +103,20 @@ class PlantillasViewModel @Inject constructor(
             )
         }
     }
+
+    fun toggleTarea(plantilla: Plantilla, index: Int) {
+        viewModelScope.launch {
+            val nuevas = if (index in plantilla.tareasCompletadas)
+                plantilla.tareasCompletadas - index
+            else
+                plantilla.tareasCompletadas + index
+            plantillasRepository.actualizar(plantilla.copy(tareasCompletadas = nuevas))
+        }
+    }
+
+    fun eliminar(id: String) {
+        viewModelScope.launch { plantillasRepository.eliminar(id) }
+    }
 }
 
 @Composable
@@ -111,10 +127,12 @@ fun PlantillasScreen(
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     PlantillasContent(
-        estado  = estado,
-        onCrear = viewModel::crear,
-        onBack  = onBack,
-        modifier = modifier,
+        estado       = estado,
+        onCrear      = viewModel::crear,
+        onToggleTarea = viewModel::toggleTarea,
+        onEliminar   = viewModel::eliminar,
+        onBack       = onBack,
+        modifier     = modifier,
     )
 }
 
@@ -123,6 +141,8 @@ fun PlantillasScreen(
 private fun PlantillasContent(
     estado: PlantillasUiState,
     onCrear: (String, String, String, String, String) -> Unit,
+    onToggleTarea: (Plantilla, Int) -> Unit,
+    onEliminar: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -167,10 +187,18 @@ private fun PlantillasContent(
         }
     }
 
-    plantillaDetalle?.let { plantilla ->
+    plantillaDetalle?.let { detalle ->
+        // Mantener la referencia sincronizada con el estado del repositorio
+        val plantillaActual = (estado as? PlantillasUiState.Success)
+            ?.plantillas?.find { it.id == detalle.id } ?: detalle
         PlantillaDetalleSheet(
-            plantilla = plantilla,
-            onDismiss = { plantillaDetalle = null },
+            plantilla     = plantillaActual,
+            onToggleTarea = { index -> onToggleTarea(plantillaActual, index) },
+            onEliminar    = {
+                onEliminar(plantillaActual.id)
+                plantillaDetalle = null
+            },
+            onDismiss     = { plantillaDetalle = null },
         )
     }
 
@@ -241,12 +269,11 @@ private fun PlantillaCard(
 @Composable
 private fun PlantillaDetalleSheet(
     plantilla: Plantilla,
+    onToggleTarea: (Int) -> Unit,
+    onEliminar: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val checked = remember(plantilla.id) {
-        mutableStateListOf(*BooleanArray(plantilla.tareas.size) { false }.toTypedArray())
-    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
@@ -286,6 +313,7 @@ private fun PlantillaDetalleSheet(
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             Text("Tareas", style = MaterialTheme.typography.titleMedium)
             plantilla.tareas.forEachIndexed { i, tarea ->
+                val completada = i in plantilla.tareasCompletadas
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -293,14 +321,25 @@ private fun PlantillaDetalleSheet(
                         .semantics(mergeDescendants = true) {},
                 ) {
                     Checkbox(
-                        checked = checked[i],
-                        onCheckedChange = { checked[i] = it },
+                        checked = completada,
+                        onCheckedChange = { onToggleTarea(i) },
                         modifier = Modifier.semantics {
-                            contentDescription = if (checked[i]) "$tarea: completada" else tarea
+                            contentDescription = if (completada) "$tarea: completada" else tarea
                         },
                     )
                     Text(tarea, style = MaterialTheme.typography.bodyMedium)
                 }
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            OutlinedButton(
+                onClick = onEliminar,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+            ) {
+                Text("Eliminar plantilla")
             }
         }
     }

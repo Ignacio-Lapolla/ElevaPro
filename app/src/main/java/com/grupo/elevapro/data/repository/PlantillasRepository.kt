@@ -13,6 +13,7 @@ interface PlantillasRepository {
     suspend fun obtenerPorId(id: String): Plantilla?
     suspend fun crear(plantilla: Plantilla)
     suspend fun actualizar(plantilla: Plantilla)
+    suspend fun eliminar(id: String)
 }
 
 @Singleton
@@ -30,5 +31,9 @@ class FakePlantillasRepository @Inject constructor() : PlantillasRepository {
 
     override suspend fun actualizar(plantilla: Plantilla) {
         _plantillas.update { lista -> lista.map { if (it.id == plantilla.id) plantilla else it } }
+    }
+
+    override suspend fun eliminar(id: String) {
+        _plantillas.update { lista -> lista.filter { it.id != id } }
     }
 }

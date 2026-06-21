@@ -55,7 +55,6 @@ import com.grupo.elevapro.data.model.domain.Factura
 import com.grupo.elevapro.data.model.domain.Orden
 import com.grupo.elevapro.data.repository.ClienteRepository
 import com.grupo.elevapro.data.repository.FacturacionRepository
-import com.grupo.elevapro.data.repository.FakeMockData
 import com.grupo.elevapro.data.repository.OrdenesRepository
 import com.grupo.elevapro.ui.components.ElevaProTextField
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
@@ -145,8 +144,10 @@ class GenerarFacturaViewModel @Inject constructor(
     }
 
     fun onCliente(id: String, nombre: String) {
-        val cliente = FakeMockData.clientes.find { it.id == id }
-        updateForm { copy(clienteId = id, clienteNombre = nombre, cuit = cliente?.cuit ?: "") }
+        viewModelScope.launch {
+            val cliente = clienteRepository.obtenerPorId(id)
+            updateForm { copy(clienteId = id, clienteNombre = nombre, cuit = cliente?.cuit ?: "") }
+        }
     }
     fun onTipo(t: String) = updateForm { copy(tipo = t) }
     fun onFechaDesde(f: String) = updateForm { copy(fechaDesde = f) }
@@ -252,7 +253,7 @@ private fun GenerarFacturaContent(
                         Text(formulario.form.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                     FilledPrimaryButton(
-                        text = if (formulario?.form?.generando == true) "Generando…" else "Generar vista previa",
+                        text = if (formulario?.form?.generando == true) "Generando…" else "Generar factura",
                         onClick = onGenerar,
                         enabled = formulario?.form?.isFormValid == true && formulario.form.generando == false,
                         icon = Icons.Outlined.Receipt,

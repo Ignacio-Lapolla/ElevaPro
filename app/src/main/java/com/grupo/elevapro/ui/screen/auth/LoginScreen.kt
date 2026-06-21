@@ -61,9 +61,11 @@ import com.grupo.elevapro.data.model.domain.Usuario
 import com.grupo.elevapro.data.repository.AuthRepository
 import com.grupo.elevapro.ui.theme.Primary
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -106,10 +108,14 @@ sealed interface LoginEvent {
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val permisosRepository: com.grupo.elevapro.data.repository.PermisosRepository,
 ) : ViewModel() {
 
     private val _estado = MutableStateFlow(LoginUiState())
     val estado: StateFlow<LoginUiState> = _estado.asStateFlow()
+
+    private val _navegarAlHome = Channel<Unit>(Channel.CONFLATED)
+    val navegarAlHome = _navegarAlHome.receiveAsFlow()
 
     fun onEvent(event: LoginEvent) {
         when (event) {
@@ -132,7 +138,11 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _estado.update { it.copy(estadoLogin = EstadoLogin.Cargando) }
             authRepository.login(s.empresa, s.email, s.password)
-                .onSuccess { _estado.update { it.copy(estadoLogin = EstadoLogin.Exito) } }
+                .onSuccess { usuario ->
+                    permisosRepository.inicializarSiVacio(usuario.id, usuario.rol)
+                    _estado.update { it.copy(estadoLogin = EstadoLogin.Exito) }
+                    _navegarAlHome.send(Unit)
+                }
                 .onFailure { e -> _estado.update { it.copy(estadoLogin = EstadoLogin.Error(e.message ?: "Error")) } }
         }
     }
@@ -147,7 +157,7 @@ fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
-    LaunchedEffect(estado.estadoLogin) { if (estado.estadoLogin is EstadoLogin.Exito) onLoginOk() }
+    LaunchedEffect(Unit) { viewModel.navegarAlHome.collect { onLoginOk() } }
     LoginContent(estado = estado, onEvent = viewModel::onEvent, modifier = modifier)
 }
 

@@ -13,4 +13,5 @@ data class Orden(
     val firmaBase64: String? = null,
     val nombreFirmante: String? = null,
     val facturado: Boolean = false,
+    val fotos: List<String> = emptyList(),   // rutas absolutas de archivos en el dispositivo
 )

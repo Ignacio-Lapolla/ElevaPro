@@ -3,6 +3,7 @@ package com.grupo.elevapro.ui.screen.articulos
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +27,11 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -84,6 +89,8 @@ sealed interface ArticulosUiState {
     data object Loading : ArticulosUiState
     data class Success(
         val articulos: List<Articulo>,
+        val totalArticulos: Int,
+        val valorTotal: Double,
         val categorias: List<String>,
         val busqueda: String,
         val categoriaSeleccionada: String?,
@@ -109,11 +116,14 @@ class ArticulosViewModel @Inject constructor(
         busqueda,
         categoria,
     ) { lista, q, cat ->
+        val filtrados = lista.filter {
+            (cat == null || it.categoria == cat) &&
+                    (q.isBlank() || it.nombre.contains(q, ignoreCase = true) || it.codigo.contains(q, ignoreCase = true))
+        }
         ArticulosUiState.Success(
-            articulos = lista.filter {
-                (cat == null || it.categoria == cat) &&
-                        (q.isBlank() || it.nombre.contains(q, ignoreCase = true) || it.codigo.contains(q, ignoreCase = true))
-            },
+            articulos = filtrados,
+            totalArticulos = lista.size,
+            valorTotal = lista.sumOf { it.precio },
             categorias = listOf("Todas") + lista.map { it.categoria }.distinct(),
             busqueda = q,
             categoriaSeleccionada = cat,
@@ -156,6 +166,8 @@ class ArticulosViewModel @Inject constructor(
 
 @Composable
 fun ArticulosScreen(
+    onBack: (() -> Unit)? = null,
+    onArticuloClick: ((Articulo) -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: ArticulosViewModel = hiltViewModel(),
 ) {
@@ -164,6 +176,8 @@ fun ArticulosScreen(
     ArticulosContent(
         estado = estado,
         form = form,
+        onBack = onBack,
+        onArticuloClick = onArticuloClick,
         onBusqueda = viewModel::onBusqueda,
         onCategoria = viewModel::onCategoria,
         onFormChange = viewModel::onFormChange,
@@ -178,6 +192,8 @@ fun ArticulosScreen(
 private fun ArticulosContent(
     estado: ArticulosUiState,
     form: NuevoArticuloForm,
+    onBack: (() -> Unit)?,
+    onArticuloClick: ((Articulo) -> Unit)?,
     onBusqueda: (String) -> Unit,
     onCategoria: (String?) -> Unit,
     onFormChange: (NuevoArticuloForm) -> Unit,
@@ -186,9 +202,10 @@ private fun ArticulosContent(
     modifier: Modifier = Modifier,
 ) {
     var mostrarSheet by remember { mutableStateOf(false) }
+    var articuloDetalle by remember { mutableStateOf<Articulo?>(null) }
 
     Scaffold(
-        topBar = { ElevaProTopAppBar("Artículos") },
+        topBar = { ElevaProTopAppBar("Artículos", onBack = onBack) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { mostrarSheet = true },
@@ -216,7 +233,11 @@ private fun ArticulosContent(
                 )
 
                 is ArticulosUiState.Success -> {
-                    Spacer(Modifier.height(4.dp))
+                    TotalRegistradoHeader(
+                        total = estado.valorTotal,
+                        cantidad = estado.totalArticulos,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    )
                     ArticulosSearchBar(
                         busqueda = estado.busqueda,
                         onBusqueda = onBusqueda,
@@ -237,12 +258,25 @@ private fun ArticulosContent(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         items(estado.articulos, key = { it.id }) { articulo ->
-                            ArticuloCard(articulo = articulo)
+                            ArticuloCard(
+                                articulo = articulo,
+                                onClick = {
+                                    if (onArticuloClick != null) onArticuloClick(articulo)
+                                    else articuloDetalle = articulo
+                                },
+                            )
                         }
                     }
                 }
             }
         }
+    }
+
+    articuloDetalle?.let { articulo ->
+        ArticuloDetalleSheet(
+            articulo = articulo,
+            onDismiss = { articuloDetalle = null },
+        )
     }
 
     if (mostrarSheet) {
@@ -295,8 +329,159 @@ private val arsFormatter = NumberFormat.getNumberInstance(Locale("es", "AR")).ap
 
 private fun formatARS(precio: Double): String = "$ ${arsFormatter.format(precio)}"
 
+// ── Total Registrado Header ───────────────────────────────────────────────────
+
 @Composable
-private fun ArticuloCard(articulo: Articulo, modifier: Modifier = Modifier) {
+private fun TotalRegistradoHeader(
+    total: Double,
+    cantidad: Int,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = "TOTAL REGISTRADO",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = formatARS(total),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Text(
+                    text = "$cantidad artículo${if (cantidad != 1) "s" else ""}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+// ── Articulo Detalle Sheet ────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArticuloDetalleSheet(
+    articulo: Articulo,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val (stockTipo, stockTexto) = when {
+        articulo.stock == 0 -> TipoEstado.ERROR to "Sin stock"
+        articulo.stock <= 5 -> TipoEstado.WARNING to "${articulo.stock} uds"
+        else -> TipoEstado.SUCCESS to "${articulo.stock} uds"
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = modifier,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = "IMPORTE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    Text(
+                        text = formatARS(articulo.precio),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+
+            Spacer(Modifier.size(16.dp))
+
+            DetalleRow(label = "Artículo", valor = articulo.nombre, icon = Icons.Outlined.Inventory2)
+            if (articulo.descripcion.isNotBlank()) {
+                HorizontalDivider()
+                DetalleRow(label = "Descripción", valor = articulo.descripcion, icon = Icons.Outlined.Inventory2)
+            }
+            HorizontalDivider()
+            DetalleRow(label = "Código", valor = articulo.codigo, icon = Icons.Outlined.Inventory2)
+            HorizontalDivider()
+            DetalleRow(label = "Categoría", valor = articulo.categoria, icon = Icons.Outlined.Inventory2)
+            HorizontalDivider()
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(
+                    Icons.Outlined.Inventory2,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Stock", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(articulo.stock.toString(), style = MaterialTheme.typography.bodyMedium)
+                }
+                StatusChip(text = stockTexto, tipo = stockTipo)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetalleRow(
+    label: String,
+    valor: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(valor, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+// ── Articulo Card ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun ArticuloCard(articulo: Articulo, onClick: () -> Unit = {}, modifier: Modifier = Modifier) {
     val (stockTipo, stockText) = when {
         articulo.stock == 0 -> TipoEstado.ERROR to "Sin stock"
         articulo.stock <= 5 -> TipoEstado.WARNING to "${articulo.stock} uds"
@@ -304,6 +489,7 @@ private fun ArticuloCard(articulo: Articulo, modifier: Modifier = Modifier) {
     }
 
     ElevatedCard(
+        onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
     ) {
