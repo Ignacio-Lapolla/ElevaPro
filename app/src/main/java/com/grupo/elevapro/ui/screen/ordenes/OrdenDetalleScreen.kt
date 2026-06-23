@@ -1,12 +1,15 @@
 package com.grupo.elevapro.ui.screen.ordenes
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -350,6 +353,26 @@ private fun FotosAdjuntasCard(
         onSetRutaTemp(null)
     }
 
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val archivo = crearArchivoFoto(context)
+            onSetRutaTemp(archivo.absolutePath)
+            launcher.launch(uriParaFoto(context, archivo))
+        }
+    }
+
+    fun abrirCamara() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            val archivo = crearArchivoFoto(context)
+            onSetRutaTemp(archivo.absolutePath)
+            launcher.launch(uriParaFoto(context, archivo))
+        } else {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     ElevatedCard(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -394,11 +417,7 @@ private fun FotosAdjuntasCard(
                                     .aspectRatio(1f)
                                     .clip(RoundedCornerShape(12.dp))
                                     .border(2.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        val archivo = crearArchivoFoto(context)
-                                        onSetRutaTemp(archivo.absolutePath)
-                                        launcher.launch(uriParaFoto(context, archivo))
-                                    },
+                                    .clickable { abrirCamara() },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(
