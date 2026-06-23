@@ -346,10 +346,15 @@ private fun FotosAdjuntasCard(
 ) {
     val context = LocalContext.current
 
+    // Ref mutable que vive fuera del ciclo de composición: el callback siempre
+    // lee el valor actual sin depender de que Compose haya recompuesto.
+    val rutaRef = remember { mutableStateOf<String?>(null) }
+
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         if (ok) {
-            rutaFotoTemporal?.let { ruta -> onAgregarFoto(ruta) }
+            rutaRef.value?.let { ruta -> onAgregarFoto(ruta) }
         }
+        rutaRef.value = null
         onSetRutaTemp(null)
     }
 
@@ -358,6 +363,7 @@ private fun FotosAdjuntasCard(
     ) { granted ->
         if (granted) {
             val archivo = crearArchivoFoto(context)
+            rutaRef.value = archivo.absolutePath
             onSetRutaTemp(archivo.absolutePath)
             launcher.launch(uriParaFoto(context, archivo))
         }
@@ -366,6 +372,7 @@ private fun FotosAdjuntasCard(
     fun abrirCamara() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             val archivo = crearArchivoFoto(context)
+            rutaRef.value = archivo.absolutePath
             onSetRutaTemp(archivo.absolutePath)
             launcher.launch(uriParaFoto(context, archivo))
         } else {
