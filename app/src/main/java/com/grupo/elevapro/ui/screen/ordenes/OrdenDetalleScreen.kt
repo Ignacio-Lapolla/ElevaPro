@@ -26,7 +26,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Close
@@ -71,6 +70,7 @@ import coil.compose.AsyncImage
 import com.grupo.elevapro.data.model.domain.Orden
 import com.grupo.elevapro.data.repository.OrdenesRepository
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
+import com.grupo.elevapro.ui.components.InfoRow
 import com.grupo.elevapro.ui.components.StatusChip
 import com.grupo.elevapro.ui.components.TipoEstado
 import com.grupo.elevapro.ui.navigation.Screen
@@ -529,22 +529,11 @@ private fun VistaPreviaOverlay(
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                    }
-                    Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
-                        Text("Vista previa", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            orden.numero,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+            ElevaProTopAppBar(
+                titulo = "Vista previa",
+                subtitulo = orden.numero,
+                onBack = onBack,
+                acciones = {
                     IconButton(onClick = onDescargar) {
                         Icon(
                             Icons.Outlined.Download,
@@ -552,16 +541,14 @@ private fun VistaPreviaOverlay(
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
-                }
-                HorizontalDivider()
-            }
+                },
+            )
 
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Box(
@@ -646,10 +633,3 @@ private fun VistaPreviaOverlay(
     }
 }
 
-@Composable
-private fun InfoRow(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
-        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = value, style = MaterialTheme.typography.bodyMedium)
-    }
-}

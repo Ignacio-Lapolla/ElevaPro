@@ -231,6 +231,14 @@ fun SectionTitle(label: String, modifier: Modifier = Modifier) {
     )
 }
 
+@Composable
+fun InfoRow(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = value, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ElevaProSearchBar(
