@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -173,113 +174,117 @@ private fun OrdenDetalleContent(
     val scope = rememberCoroutineScope()
     var mostrarVistaPrevia by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = { ElevaProTopAppBar(titulo = titulo, onBack = onBack) },
-        snackbarHost = { SnackbarHost(snackbarHost) },
-        modifier = modifier,
-    ) { padding ->
-        when (val s = estado) {
-            DetalleUiState.Loading -> Box(
-                Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center,
-            ) { CircularProgressIndicator() }
+    BackHandler(enabled = mostrarVistaPrevia) { mostrarVistaPrevia = false }
 
-            is DetalleUiState.Error -> Text(
-                text = s.mensaje,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(padding).padding(16.dp),
-            )
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = { ElevaProTopAppBar(titulo = titulo, onBack = onBack) },
+            snackbarHost = { SnackbarHost(snackbarHost) },
+        ) { padding ->
+            when (val s = estado) {
+                DetalleUiState.Loading -> Box(
+                    Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center,
+                ) { CircularProgressIndicator() }
 
-            is DetalleUiState.Success -> {
-                Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        OrdenDetalleBody(
-                            orden            = s.orden,
-                            onAgregarFoto    = onAgregarFoto,
-                            onEliminarFoto   = onEliminarFoto,
-                            rutaFotoTemporal = rutaFotoTemporal,
-                            onSetRutaTemp    = onSetRutaTemp,
-                        )
-                    }
+                is DetalleUiState.Error -> Text(
+                    text = s.mensaje,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(padding).padding(16.dp),
+                )
 
-                    HorizontalDivider()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilledTonalButton(
-                            onClick = { mostrarVistaPrevia = true },
-                            modifier = Modifier.weight(1f),
+                is DetalleUiState.Success -> {
+                    Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            Icon(Icons.Outlined.RemoveRedEye, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.size(6.dp))
-                            Text("Vista previa", style = MaterialTheme.typography.labelMedium)
-                        }
-
-                        FilledTonalButton(
-                            onClick = { if (!s.orden.firmada) onFirmar(s.orden.id) },
-                            enabled = !s.orden.firmada,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = if (s.orden.firmada) SuccessContainer
-                                                 else MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = if (s.orden.firmada) MaterialTheme.colorScheme.tertiary
-                                               else MaterialTheme.colorScheme.onSecondaryContainer,
-                            ),
-                        ) {
-                            Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.size(6.dp))
-                            Text(
-                                if (s.orden.firmada) "Firmada" else "Capturar firma",
-                                style = MaterialTheme.typography.labelMedium,
+                            OrdenDetalleBody(
+                                orden            = s.orden,
+                                onAgregarFoto    = onAgregarFoto,
+                                onEliminarFoto   = onEliminarFoto,
+                                rutaFotoTemporal = rutaFotoTemporal,
+                                onSetRutaTemp    = onSetRutaTemp,
                             )
                         }
 
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    runCatching {
-                                        val uri = PdfGenerator.generarOrden(context, s.orden)
-                                        PdfGenerator.abrir(context, uri)
-                                    }.onFailure {
-                                        snackbarHost.showSnackbar("Error al generar PDF")
-                                    }
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
+                        HorizontalDivider()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.size(6.dp))
-                            Text("Descargar", style = MaterialTheme.typography.labelMedium)
+                            FilledTonalButton(
+                                onClick = { mostrarVistaPrevia = true },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(Icons.Outlined.RemoveRedEye, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.size(6.dp))
+                                Text("Vista previa", style = MaterialTheme.typography.labelMedium)
+                            }
+
+                            FilledTonalButton(
+                                onClick = { if (!s.orden.firmada) onFirmar(s.orden.id) },
+                                enabled = !s.orden.firmada,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = if (s.orden.firmada) SuccessContainer
+                                                     else MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = if (s.orden.firmada) MaterialTheme.colorScheme.tertiary
+                                                   else MaterialTheme.colorScheme.onSecondaryContainer,
+                                ),
+                            ) {
+                                Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.size(6.dp))
+                                Text(
+                                    if (s.orden.firmada) "Firmada" else "Capturar firma",
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        runCatching {
+                                            val uri = PdfGenerator.generarOrden(context, s.orden)
+                                            PdfGenerator.abrir(context, uri)
+                                        }.onFailure {
+                                            snackbarHost.showSnackbar("Error al generar PDF")
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.size(6.dp))
+                                Text("Descargar", style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
                 }
-
-                if (mostrarVistaPrevia) {
-                    VistaPreviaOverlay(
-                        orden = s.orden,
-                        onBack = { mostrarVistaPrevia = false },
-                        onDescargar = {
-                            scope.launch {
-                                runCatching {
-                                    val uri = PdfGenerator.generarOrden(context, s.orden)
-                                    PdfGenerator.abrir(context, uri)
-                                }.onFailure {
-                                    snackbarHost.showSnackbar("Error al generar PDF")
-                                }
-                            }
-                        },
-                    )
-                }
             }
+        }
+
+        val s = estado
+        if (mostrarVistaPrevia && s is DetalleUiState.Success) {
+            VistaPreviaOverlay(
+                orden = s.orden,
+                onBack = { mostrarVistaPrevia = false },
+                onDescargar = {
+                    scope.launch {
+                        runCatching {
+                            val uri = PdfGenerator.generarOrden(context, s.orden)
+                            PdfGenerator.abrir(context, uri)
+                        }.onFailure {
+                            snackbarHost.showSnackbar("Error al generar PDF")
+                        }
+                    }
+                },
+            )
         }
     }
 }
