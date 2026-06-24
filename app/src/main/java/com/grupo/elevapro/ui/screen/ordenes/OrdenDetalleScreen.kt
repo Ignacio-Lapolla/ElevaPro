@@ -1,12 +1,15 @@
 package com.grupo.elevapro.ui.screen.ordenes
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,7 +29,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Close
@@ -53,7 +55,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,6 +74,7 @@ import coil.compose.AsyncImage
 import com.grupo.elevapro.data.model.domain.Orden
 import com.grupo.elevapro.data.repository.OrdenesRepository
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
+import com.grupo.elevapro.ui.components.InfoRow
 import com.grupo.elevapro.ui.components.StatusChip
 import com.grupo.elevapro.ui.components.TipoEstado
 import com.grupo.elevapro.ui.navigation.Screen
@@ -115,6 +117,13 @@ class OrdenDetalleViewModel @Inject constructor(
         get() = savedStateHandle["foto_temp"]
         set(value) { savedStateHandle["foto_temp"] = value }
 
+    val mostrarVistaPrevia: StateFlow<Boolean> =
+        savedStateHandle.getStateFlow("mostrar_vista_previa", false)
+
+    fun setMostrarVistaPrevia(value: Boolean) {
+        savedStateHandle["mostrar_vista_previa"] = value
+    }
+
     fun agregarFoto(ruta: String) {
         viewModelScope.launch { repo.agregarFoto(id, ruta) }
     }
@@ -145,15 +154,18 @@ fun OrdenDetalleScreen(
     viewModel: OrdenDetalleViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
+    val mostrarVistaPrevia by viewModel.mostrarVistaPrevia.collectAsStateWithLifecycle()
     OrdenDetalleContent(
-        estado           = estado,
-        onBack           = onBack,
-        onFirmar         = onFirmar,
-        onAgregarFoto    = viewModel::agregarFoto,
-        onEliminarFoto   = viewModel::eliminarFoto,
-        rutaFotoTemporal = viewModel.rutaFotoTemporal,
-        onSetRutaTemp    = { viewModel.rutaFotoTemporal = it },
-        modifier         = modifier,
+        estado                  = estado,
+        onBack                  = onBack,
+        onFirmar                = onFirmar,
+        onAgregarFoto           = viewModel::agregarFoto,
+        onEliminarFoto          = viewModel::eliminarFoto,
+        rutaFotoTemporal        = viewModel.rutaFotoTemporal,
+        onSetRutaTemp           = { viewModel.rutaFotoTemporal = it },
+        mostrarVistaPrevia      = mostrarVistaPrevia,
+        onSetMostrarVistaPrevia = viewModel::setMostrarVistaPrevia,
+        modifier                = modifier,
     )
 }
 
@@ -166,15 +178,29 @@ private fun OrdenDetalleContent(
     onEliminarFoto: (String) -> Unit,
     rutaFotoTemporal: String?,
     onSetRutaTemp: (String?) -> Unit,
+    mostrarVistaPrevia: Boolean,
+    onSetMostrarVistaPrevia: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val titulo = (estado as? DetalleUiState.Success)?.let { "Orden ${it.orden.numero}" } ?: "Detalle"
     val snackbarHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var mostrarVistaPrevia by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = mostrarVistaPrevia) { mostrarVistaPrevia = false }
+    BackHandler(enabled = mostrarVistaPrevia && estado is DetalleUiState.Success) {
+        onSetMostrarVistaPrevia(false)
+    }
+
+    val descargarPdf: (Orden) -> Unit = { orden ->
+        scope.launch {
+            runCatching {
+                val uri = PdfGenerator.generarOrden(context, orden)
+                PdfGenerator.abrir(context, uri)
+            }.onFailure {
+                snackbarHost.showSnackbar("Error al generar PDF")
+            }
+        }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
@@ -192,7 +218,6 @@ private fun OrdenDetalleContent(
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(padding).padding(16.dp),
                 )
-
                 is DetalleUiState.Success -> {
                     Column(modifier = Modifier.fillMaxSize().padding(padding)) {
                         Column(
@@ -219,7 +244,7 @@ private fun OrdenDetalleContent(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             FilledTonalButton(
-                                onClick = { mostrarVistaPrevia = true },
+                                onClick = { onSetMostrarVistaPrevia(true) },
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Icon(Icons.Outlined.RemoveRedEye, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -247,16 +272,7 @@ private fun OrdenDetalleContent(
                             }
 
                             Button(
-                                onClick = {
-                                    scope.launch {
-                                        runCatching {
-                                            val uri = PdfGenerator.generarOrden(context, s.orden)
-                                            PdfGenerator.abrir(context, uri)
-                                        }.onFailure {
-                                            snackbarHost.showSnackbar("Error al generar PDF")
-                                        }
-                                    }
-                                },
+                                onClick = { descargarPdf(s.orden) },
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -273,17 +289,8 @@ private fun OrdenDetalleContent(
         if (mostrarVistaPrevia && s is DetalleUiState.Success) {
             VistaPreviaOverlay(
                 orden = s.orden,
-                onBack = { mostrarVistaPrevia = false },
-                onDescargar = {
-                    scope.launch {
-                        runCatching {
-                            val uri = PdfGenerator.generarOrden(context, s.orden)
-                            PdfGenerator.abrir(context, uri)
-                        }.onFailure {
-                            snackbarHost.showSnackbar("Error al generar PDF")
-                        }
-                    }
-                },
+                onBack = { onSetMostrarVistaPrevia(false) },
+                onDescargar = { descargarPdf(s.orden) },
             )
         }
     }
@@ -339,11 +346,38 @@ private fun FotosAdjuntasCard(
 ) {
     val context = LocalContext.current
 
+    // Ref mutable que vive fuera del ciclo de composición: el callback siempre
+    // lee el valor actual sin depender de que Compose haya recompuesto.
+    val rutaRef = remember { mutableStateOf<String?>(null) }
+
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         if (ok) {
-            rutaFotoTemporal?.let { ruta -> onAgregarFoto(ruta) }
+            rutaRef.value?.let { ruta -> onAgregarFoto(ruta) }
         }
+        rutaRef.value = null
         onSetRutaTemp(null)
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val archivo = crearArchivoFoto(context)
+            rutaRef.value = archivo.absolutePath
+            onSetRutaTemp(archivo.absolutePath)
+            launcher.launch(uriParaFoto(context, archivo))
+        }
+    }
+
+    fun abrirCamara() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            val archivo = crearArchivoFoto(context)
+            rutaRef.value = archivo.absolutePath
+            onSetRutaTemp(archivo.absolutePath)
+            launcher.launch(uriParaFoto(context, archivo))
+        } else {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
     }
 
     ElevatedCard(modifier = modifier.fillMaxWidth()) {
@@ -390,11 +424,7 @@ private fun FotosAdjuntasCard(
                                     .aspectRatio(1f)
                                     .clip(RoundedCornerShape(12.dp))
                                     .border(2.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        val archivo = crearArchivoFoto(context)
-                                        onSetRutaTemp(archivo.absolutePath)
-                                        launcher.launch(uriParaFoto(context, archivo))
-                                    },
+                                    .clickable { abrirCamara() },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(
@@ -525,22 +555,11 @@ private fun VistaPreviaOverlay(
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                    }
-                    Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
-                        Text("Vista previa", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            orden.numero,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+            ElevaProTopAppBar(
+                titulo = "Vista previa",
+                subtitulo = orden.numero,
+                onBack = onBack,
+                acciones = {
                     IconButton(onClick = onDescargar) {
                         Icon(
                             Icons.Outlined.Download,
@@ -548,16 +567,14 @@ private fun VistaPreviaOverlay(
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
-                }
-                HorizontalDivider()
-            }
+                },
+            )
 
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Box(
@@ -642,10 +659,3 @@ private fun VistaPreviaOverlay(
     }
 }
 
-@Composable
-private fun InfoRow(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
-        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = value, style = MaterialTheme.typography.bodyMedium)
-    }
-}

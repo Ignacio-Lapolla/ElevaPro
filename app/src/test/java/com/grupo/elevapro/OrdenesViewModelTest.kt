@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -98,5 +99,64 @@ class OrdenesViewModelTest {
 
         val orden = repo.obtenerPorId("o1")
         assertTrue(orden?.fotos?.isEmpty() == true)
+    }
+
+    // ── mostrarVistaPrevia ────────────────────────────────────────────────────
+
+    @Test
+    fun `mostrarVistaPrevia inicia en false`() = runTest {
+        val repo = FakeOrdenesRepository(listOf(ordenEjemplo))
+        val handle = SavedStateHandle(mapOf(Screen.OrdenDetalle.ARG_ID to "o1"))
+        val vm = OrdenDetalleViewModel(repo, handle)
+
+        assertFalse(vm.mostrarVistaPrevia.value)
+    }
+
+    @Test
+    fun `setMostrarVistaPrevia true actualiza el state`() = runTest {
+        val repo = FakeOrdenesRepository(listOf(ordenEjemplo))
+        val handle = SavedStateHandle(mapOf(Screen.OrdenDetalle.ARG_ID to "o1"))
+        val vm = OrdenDetalleViewModel(repo, handle)
+
+        vm.setMostrarVistaPrevia(true)
+
+        assertTrue(vm.mostrarVistaPrevia.value)
+    }
+
+    @Test
+    fun `setMostrarVistaPrevia false resetea el state`() = runTest {
+        val repo = FakeOrdenesRepository(listOf(ordenEjemplo))
+        val handle = SavedStateHandle(mapOf(Screen.OrdenDetalle.ARG_ID to "o1"))
+        val vm = OrdenDetalleViewModel(repo, handle)
+
+        vm.setMostrarVistaPrevia(true)
+        vm.setMostrarVistaPrevia(false)
+
+        assertFalse(vm.mostrarVistaPrevia.value)
+    }
+
+    @Test
+    fun `setMostrarVistaPrevia persiste en SavedStateHandle`() = runTest {
+        val repo = FakeOrdenesRepository(listOf(ordenEjemplo))
+        val handle = SavedStateHandle(mapOf(Screen.OrdenDetalle.ARG_ID to "o1"))
+        val vm = OrdenDetalleViewModel(repo, handle)
+
+        vm.setMostrarVistaPrevia(true)
+
+        assertEquals(true, handle.get<Boolean>("mostrar_vista_previa"))
+    }
+
+    @Test
+    fun `mostrarVistaPrevia se restaura desde SavedStateHandle al recrear el ViewModel`() = runTest {
+        val repo = FakeOrdenesRepository(listOf(ordenEjemplo))
+        val handle = SavedStateHandle(
+            mapOf(
+                Screen.OrdenDetalle.ARG_ID to "o1",
+                "mostrar_vista_previa" to true,
+            )
+        )
+        val vm = OrdenDetalleViewModel(repo, handle)
+
+        assertTrue(vm.mostrarVistaPrevia.value)
     }
 }

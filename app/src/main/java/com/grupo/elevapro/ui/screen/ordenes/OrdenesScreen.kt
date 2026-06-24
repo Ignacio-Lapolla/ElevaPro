@@ -107,6 +107,7 @@ sealed interface OrdenesUiState {
         val totalSinFirmar: Int,
         val clientes: List<Cliente>,
         val supervisores: List<Supervisor>,
+        val isOnline: Boolean = true,
     ) : OrdenesUiState
     data object SinConexion : OrdenesUiState
     data class Error(val mensaje: String) : OrdenesUiState
@@ -137,7 +138,6 @@ class OrdenesViewModel @Inject constructor(
         busqueda,
         combine(filtroAvanzado, isOnline) { fa, online -> fa to online },
     ) { lista, clientes, filtroActual, q, (fa, online) ->
-        if (!online && lista.isEmpty()) return@combine OrdenesUiState.SinConexion
         val filtradas = lista.filter { orden ->
             val matchBusqueda = q.isBlank() ||
                 orden.clienteNombre.contains(q, ignoreCase = true) ||
@@ -162,6 +162,7 @@ class OrdenesViewModel @Inject constructor(
             totalSinFirmar = lista.count { !it.firmada },
             clientes = clientes,
             supervisores = supervisores.value,
+            isOnline = online,
         ) as OrdenesUiState
     }.stateIn(
         scope = viewModelScope,
@@ -336,6 +337,10 @@ private fun OrdenesContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+
+            if (estado is OrdenesUiState.Success && !estado.isOnline) {
+                BannerSinConexion()
             }
 
             when (estado) {
