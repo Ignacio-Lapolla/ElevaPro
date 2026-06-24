@@ -53,7 +53,6 @@ import com.grupo.elevapro.data.model.domain.Cliente
 import com.grupo.elevapro.data.repository.ClienteRepository
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.theme.Primary
-import com.grupo.elevapro.ui.theme.SurfaceLight
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -158,7 +157,7 @@ private fun ClientesContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(SurfaceLight),
+                .background(MaterialTheme.colorScheme.background),
         ) {
             OutlinedTextField(
                 value = busqueda,
