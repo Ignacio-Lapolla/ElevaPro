@@ -13,6 +13,7 @@ interface ClienteRepository {
     suspend fun obtenerPorId(id: String): Cliente?
     suspend fun agregar(cliente: Cliente)
     suspend fun actualizar(cliente: Cliente)
+    suspend fun eliminar(id: String)
     fun obtenerSupervisorNombre(supervisorId: String): String?
 }
 
@@ -31,6 +32,9 @@ class FakeClienteRepository @Inject constructor() : ClienteRepository {
 
     override suspend fun actualizar(cliente: Cliente) =
         _clientes.update { lista -> lista.map { if (it.id == cliente.id) cliente else it } }
+
+    override suspend fun eliminar(id: String) =
+        _clientes.update { lista -> lista.filter { it.id != id } }
 
     override fun obtenerSupervisorNombre(supervisorId: String): String? =
         FakeMockData.supervisores.find { it.id == supervisorId }?.nombre

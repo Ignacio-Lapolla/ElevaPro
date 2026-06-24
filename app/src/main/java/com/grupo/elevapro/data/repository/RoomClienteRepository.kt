@@ -46,6 +46,10 @@ class RoomClienteRepository @Inject constructor(
         local.actualizar(cliente.toEntity())
     }
 
+    override suspend fun eliminar(id: String) {
+        local.eliminar(id)
+    }
+
     override fun obtenerSupervisorNombre(supervisorId: String): String? =
         FakeMockData.supervisores.find { it.id == supervisorId }?.nombre
 }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.LocationOn
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.outlined.Notes
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -34,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -90,6 +93,7 @@ data class AgregarClienteFormState(
 sealed interface AgregarClienteUiState {
     data class Formulario(val form: AgregarClienteFormState = AgregarClienteFormState()) : AgregarClienteUiState
     data object Guardado : AgregarClienteUiState
+    data object Eliminado : AgregarClienteUiState
 }
 
 @HiltViewModel
@@ -162,6 +166,14 @@ class AgregarClienteViewModel @Inject constructor(
         }
     }
 
+    fun eliminar() {
+        val id = clienteId ?: return
+        viewModelScope.launch {
+            repository.eliminar(id)
+            _estado.value = AgregarClienteUiState.Eliminado
+        }
+    }
+
     private fun updateForm(block: AgregarClienteFormState.() -> AgregarClienteFormState) {
         _estado.update { current ->
             if (current is AgregarClienteUiState.Formulario) {
@@ -180,7 +192,7 @@ fun AgregarClienteScreen(
     val estado by viewModel.estado.collectAsStateWithLifecycle()
 
     LaunchedEffect(estado) {
-        if (estado is AgregarClienteUiState.Guardado) onBack()
+        if (estado is AgregarClienteUiState.Guardado || estado is AgregarClienteUiState.Eliminado) onBack()
     }
 
     val form = (estado as? AgregarClienteUiState.Formulario)?.form ?: AgregarClienteFormState()
@@ -202,6 +214,7 @@ fun AgregarClienteScreen(
         onSupervisor = viewModel::onSupervisor,
         onNotas = viewModel::onNotas,
         onGuardar = viewModel::guardar,
+        onEliminar = viewModel::eliminar,
         modifier = modifier,
     )
 }
@@ -223,14 +236,49 @@ private fun AgregarClienteContent(
     onSupervisor: (String?, String) -> Unit,
     onNotas: (String) -> Unit,
     onGuardar: () -> Unit,
+    onEliminar: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var mostrarDialogoEliminar by remember { mutableStateOf(false) }
+
+    if (mostrarDialogoEliminar) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoEliminar = false },
+            title = { Text("Eliminar cliente") },
+            text = { Text("¿Eliminar a ${form.nombre}? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        mostrarDialogoEliminar = false
+                        onEliminar()
+                    },
+                ) {
+                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoEliminar = false }) {
+                    Text("Cancelar")
+                }
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             ElevaProTopAppBar(
                 titulo = titulo,
                 onBack = onBack,
                 acciones = {
+                    if (esEdicion) {
+                        IconButton(onClick = { mostrarDialogoEliminar = true }) {
+                            Icon(
+                                Icons.Outlined.Delete,
+                                contentDescription = "Eliminar cliente",
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                     IconButton(onClick = onGuardar, enabled = form.isFormValid && !form.guardando) {
                         Icon(Icons.Outlined.Check, contentDescription = "Guardar")
                     }
@@ -449,6 +497,7 @@ private fun AgregarClienteVacioPreview() {
             onSupervisor = { _, _ -> },
             onNotas = {},
             onGuardar = {},
+            onEliminar = {},
         )
     }
 }
@@ -480,6 +529,7 @@ private fun AgregarClienteEdicionPreview() {
             onSupervisor = { _, _ -> },
             onNotas = {},
             onGuardar = {},
+            onEliminar = {},
         )
     }
 }
