@@ -1,9 +1,22 @@
 package com.grupo.elevapro.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "ordenes")
+@Entity(
+    tableName = "ordenes",
+    foreignKeys = [
+        ForeignKey(
+            entity = ClienteEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["clienteId"],
+            onDelete = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index("clienteId")],
+)
 data class OrdenEntity(
     @PrimaryKey val id: String,
     val numero: String,

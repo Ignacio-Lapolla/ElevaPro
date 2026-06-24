@@ -205,7 +205,6 @@ private fun OrdenDetalleContent(
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
             topBar = { ElevaProTopAppBar(titulo = titulo, onBack = onBack) },
-            snackbarHost = { SnackbarHost(snackbarHost) },
         ) { padding ->
             when (val s = estado) {
                 DetalleUiState.Loading -> Box(
@@ -294,6 +293,11 @@ private fun OrdenDetalleContent(
                 onDescargar = { descargarPdf(s.orden) },
             )
         }
+
+        SnackbarHost(
+            hostState = snackbarHost,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
@@ -347,9 +351,8 @@ private fun FotosAdjuntasCard(
 ) {
     val context = LocalContext.current
 
-    // Ref mutable que vive fuera del ciclo de composición: el callback siempre
-    // lee el valor actual sin depender de que Compose haya recompuesto.
-    val rutaRef = remember { mutableStateOf<String?>(null) }
+    // Inicializar desde SavedStateHandle para recuperar la ruta tras process death.
+    val rutaRef = remember { mutableStateOf(rutaFotoTemporal) }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         if (ok) {
