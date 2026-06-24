@@ -13,5 +13,6 @@ class ClienteLocalDataSource @Inject constructor(private val dao: ClienteDao) {
     suspend fun insertar(clientes: List<ClienteEntity>) = dao.insertar(clientes)
     suspend fun insertarUno(cliente: ClienteEntity) = dao.insertarUno(cliente)
     suspend fun actualizar(cliente: ClienteEntity) = dao.actualizar(cliente)
+    suspend fun eliminar(id: String) = dao.eliminarPorId(id)
     suspend fun contar(): Int = dao.contar()
 }

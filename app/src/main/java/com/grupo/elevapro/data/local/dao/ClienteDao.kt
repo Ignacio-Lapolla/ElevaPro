@@ -25,6 +25,9 @@ interface ClienteDao {
     @Update
     suspend fun actualizar(cliente: ClienteEntity)
 
+    @Query("DELETE FROM clientes WHERE id = :id")
+    suspend fun eliminarPorId(id: String)
+
     @Query("SELECT COUNT(*) FROM clientes")
     suspend fun contar(): Int
 }
