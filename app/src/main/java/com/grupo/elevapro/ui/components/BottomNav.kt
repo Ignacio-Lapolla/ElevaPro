@@ -6,7 +6,13 @@ import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Inventory
 import androidx.compose.material.icons.outlined.People
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +60,7 @@ fun ElevaProBottomNav(
         NavigationBar(
             containerColor = MaterialTheme.colorScheme.surface,
             tonalElevation = NavigationBarDefaults.Elevation,
+            windowInsets = WindowInsets(0),
         ) {
             items.forEach { item ->
                 val selected = currentRoute == item.route
@@ -80,5 +87,11 @@ fun ElevaProBottomNav(
                 )
             }
         }
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsBottomHeight(WindowInsets.navigationBars)
+                .background(MaterialTheme.colorScheme.surface),
+        )
     }
 }
