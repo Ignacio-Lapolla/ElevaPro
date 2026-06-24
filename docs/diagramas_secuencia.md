@@ -181,6 +181,44 @@ sequenceDiagram
 
 ---
 
+## 6. Adjuntar foto a una orden de trabajo
+
+Flujo: el operativo solicita la cámara → se verifica permiso CAMERA en runtime → se captura la foto → la URI queda adjunta a la orden en Room.
+
+```mermaid
+sequenceDiagram
+    actor Operativo
+    participant OrdenDetalleScreen
+    participant PermissionLauncher as RequestPermission Launcher
+    participant CameraLauncher as TakePicture Launcher
+    participant OrdenesViewModel
+    participant OrdenesRepository
+    participant Room as Room (OrdenDao)
+
+    Operativo->>OrdenDetalleScreen: toca "Adjuntar foto"
+    OrdenDetalleScreen->>PermissionLauncher: launch(CAMERA)
+
+    alt permiso denegado
+        PermissionLauncher-->>OrdenDetalleScreen: granted = false
+        OrdenDetalleScreen-->>Operativo: Snackbar "Permiso de cámara requerido"
+    else permiso concedido
+        PermissionLauncher-->>OrdenDetalleScreen: granted = true
+        OrdenDetalleScreen->>CameraLauncher: launch(rutaUri)
+
+        CameraLauncher-->>OrdenDetalleScreen: resultado = true (foto capturada)
+        Note over OrdenDetalleScreen: rutaRef (mutableStateOf remember)<br/>ya tiene la URI antes del callback
+
+        OrdenDetalleScreen->>OrdenesViewModel: adjuntarFoto(ordenId, rutaUri)
+        OrdenesViewModel->>OrdenesRepository: actualizarFoto(id, rutaUri)
+        OrdenesRepository->>Room: actualizar(entity.copy(fotoUri = rutaUri))
+        Room-->>OrdenesRepository: OK
+        OrdenesViewModel->>OrdenesViewModel: actualiza UiState con nueva URI
+        OrdenDetalleScreen-->>Operativo: miniatura de foto visible en detalle
+    end
+```
+
+---
+
 ## Resumen de flujos cubiertos
 
 | # | Flujo | Capas involucradas |
@@ -190,3 +228,4 @@ sequenceDiagram
 | 3 | Modo offline con datos cacheados | ConnectivityManager → NetworkMonitor → VM → Room → UI |
 | 4 | Generar factura con validación de IVA | UI → VM → ClienteRepo + OrdenesRepo + FacturacionRepo → UI |
 | 5 | Arquitectura general de capas | UI ↔ VM ↔ Repo ↔ Local / Remote |
+| 6 | Adjuntar foto a una orden | UI → PermissionLauncher → CameraLauncher → VM → OrdenesRepo → Room |
