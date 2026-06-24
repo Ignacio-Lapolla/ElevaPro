@@ -47,8 +47,17 @@ val OnSurfaceVariant = Color(0xFF3D3D3D)
 
 // ── Dark variants ─────────────────────────────────────────────────────────────
 val PrimaryDark = Color(0xFF9FC6FF)
+val PrimaryContainerDark = Color(0xFF004785)
+val OnPrimaryContainerDark = Color(0xFFD6E3FF)
+
 val SecondaryDark = Color(0xFFB0BEC5)
+val SecondaryContainerDark = Color(0xFF1E3040)
+val OnSecondaryContainerDark = Color(0xFFCFE3F3)
+
 val TertiaryDark = Color(0xFFFFB68F)
+val TertiaryContainerDark = Color(0xFF5C2900)
+val OnTertiaryContainerDark = Color(0xFFFFDCC2)
+
 val SurfaceDarkBg = Color(0xFF121212)
 val OnSurfaceLight = Color(0xFFE6E1E5)
 val BackgroundDark = Color(0xFF0F0F0F)

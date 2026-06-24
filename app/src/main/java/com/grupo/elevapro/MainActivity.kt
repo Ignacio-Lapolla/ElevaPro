@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            ElevaProTheme {
+            ElevaProTheme(darkTheme = false) {
                 ElevaProApp()
             }
         }
