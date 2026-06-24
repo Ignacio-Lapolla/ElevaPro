@@ -45,11 +45,12 @@ import com.grupo.elevapro.ui.components.StatusChip
 import com.grupo.elevapro.ui.components.TipoEstado
 import com.grupo.elevapro.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -77,8 +78,8 @@ class UsuarioPermisosViewModel @Inject constructor(
     private val usuarioId: String = checkNotNull(savedStateHandle[Screen.UsuarioPermisos.ARG_ID])
 
     private val _permisosEditados = MutableStateFlow<Set<Permiso>?>(null)
-    private val _guardadoExitoso  = MutableStateFlow(false)
-    val guardadoExitoso: StateFlow<Boolean> = _guardadoExitoso.asStateFlow()
+    private val _guardadoExitoso  = Channel<Unit>(Channel.CONFLATED)
+    val guardadoExitoso = _guardadoExitoso.receiveAsFlow()
 
     val estado: StateFlow<UsuarioPermisosUiState> = combine(
         usuariosRepository.observarUsuarios(),
@@ -101,17 +102,15 @@ class UsuarioPermisosViewModel @Inject constructor(
     fun guardar() {
         val editados = _permisosEditados.value
         if (editados == null) {
-            _guardadoExitoso.value = true
+            viewModelScope.launch { _guardadoExitoso.send(Unit) }
             return
         }
         viewModelScope.launch {
             permisosRepository.actualizar(usuarioId, editados)
             _permisosEditados.value = null
-            _guardadoExitoso.value = true
+            _guardadoExitoso.send(Unit)
         }
     }
-
-    fun onGuardadoHandled() { _guardadoExitoso.value = false }
 }
 
 // ── Container ────────────────────────────────────────────────────────────────
@@ -122,15 +121,8 @@ fun UsuarioPermisosScreen(
     modifier: Modifier = Modifier,
     viewModel: UsuarioPermisosViewModel = hiltViewModel(),
 ) {
-    val estado          by viewModel.estado.collectAsStateWithLifecycle()
-    val guardadoExitoso by viewModel.guardadoExitoso.collectAsStateWithLifecycle()
-
-    LaunchedEffect(guardadoExitoso) {
-        if (guardadoExitoso) {
-            viewModel.onGuardadoHandled()
-            onBack()
-        }
-    }
+    val estado by viewModel.estado.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { viewModel.guardadoExitoso.collect { onBack() } }
 
     UsuarioPermisosContent(
         estado   = estado,

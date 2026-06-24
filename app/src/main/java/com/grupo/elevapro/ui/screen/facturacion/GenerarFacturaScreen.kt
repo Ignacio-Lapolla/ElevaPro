@@ -62,12 +62,14 @@ import com.grupo.elevapro.ui.components.FilledPrimaryButton
 import com.grupo.elevapro.ui.theme.OnTertiaryContainer
 import com.grupo.elevapro.ui.theme.TertiaryContainer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -111,7 +113,6 @@ sealed interface GenerarFacturaUiState {
         val clientes: List<Cliente>,
         val ordenesFirmadas: List<Orden>,
     ) : GenerarFacturaUiState
-    data object Generado : GenerarFacturaUiState
 }
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
@@ -127,6 +128,9 @@ class GenerarFacturaViewModel @Inject constructor(
     private val _estado = MutableStateFlow<GenerarFacturaUiState>(GenerarFacturaUiState.Loading)
     val estado: StateFlow<GenerarFacturaUiState> = _estado.asStateFlow()
 
+    private val _navegarAtras = Channel<Unit>(Channel.CONFLATED)
+    val navegarAtras = _navegarAtras.receiveAsFlow()
+
     init {
         combine(
             clienteRepository.observarClientes(),
@@ -139,7 +143,7 @@ class GenerarFacturaViewModel @Inject constructor(
                 ordenesFirmadas = ordenes.filter { it.firmada && !it.facturado },
             )
         }.onEach { nuevo ->
-            if (_estado.value !is GenerarFacturaUiState.Generado) _estado.value = nuevo
+            _estado.value = nuevo
         }.launchIn(viewModelScope)
     }
 
@@ -178,7 +182,7 @@ class GenerarFacturaViewModel @Inject constructor(
                         ordenesIds = if (form.ordenVinculadaId.isNotBlank()) listOf(form.ordenVinculadaId) else emptyList(),
                     )
                 )
-                _estado.value = GenerarFacturaUiState.Generado
+                _navegarAtras.send(Unit)
             } catch (e: Exception) {
                 updateForm { copy(generando = false, error = "No se pudo generar la factura") }
             }
@@ -199,7 +203,7 @@ fun GenerarFacturaScreen(
     viewModel: GenerarFacturaViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
-    LaunchedEffect(estado) { if (estado is GenerarFacturaUiState.Generado) onBack() }
+    LaunchedEffect(Unit) { viewModel.navegarAtras.collect { onBack() } }
     val formulario = estado as? GenerarFacturaUiState.Formulario
     GenerarFacturaContent(
         formulario = formulario,

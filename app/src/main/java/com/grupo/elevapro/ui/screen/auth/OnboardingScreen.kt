@@ -313,7 +313,7 @@ private fun BotoneraOnboarding(
             Spacer(Modifier.height(8.dp))
             if (esUltima) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Ya tenes cuenta? ", style = MaterialTheme.typography.bodyMedium)
+                    Text("¿Ya tenés cuenta? ", style = MaterialTheme.typography.bodyMedium)
                     TextButton(onClick = onIniciarSesion, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                         Text(
                             text = "Iniciá sesión",

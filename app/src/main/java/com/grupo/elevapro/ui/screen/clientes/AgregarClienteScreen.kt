@@ -60,16 +60,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.grupo.elevapro.data.model.domain.Cliente
+import com.grupo.elevapro.data.model.domain.Supervisor
 import com.grupo.elevapro.data.repository.ClienteRepository
-import com.grupo.elevapro.data.repository.FakeMockData
+import com.grupo.elevapro.data.repository.SupervisoresRepository
 import com.grupo.elevapro.ui.components.ElevaProTextField
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.FilledPrimaryButton
 import com.grupo.elevapro.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -100,6 +103,7 @@ sealed interface AgregarClienteUiState {
 class AgregarClienteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: ClienteRepository,
+    private val supervisoresRepository: SupervisoresRepository,
 ) : ViewModel() {
 
     private val clienteId: String? = savedStateHandle[Screen.AgregarCliente.ARG_ID]
@@ -108,7 +112,9 @@ class AgregarClienteViewModel @Inject constructor(
     private val _estado = MutableStateFlow<AgregarClienteUiState>(AgregarClienteUiState.Formulario())
     val estado: StateFlow<AgregarClienteUiState> = _estado.asStateFlow()
 
-    val supervisores = FakeMockData.supervisores
+    val supervisores: StateFlow<List<Supervisor>> =
+        supervisoresRepository.observarSupervisores()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
         if (clienteId != null) {
@@ -189,7 +195,8 @@ fun AgregarClienteScreen(
     modifier: Modifier = Modifier,
     viewModel: AgregarClienteViewModel = hiltViewModel(),
 ) {
-    val estado by viewModel.estado.collectAsStateWithLifecycle()
+    val estado       by viewModel.estado.collectAsStateWithLifecycle()
+    val supervisores by viewModel.supervisores.collectAsStateWithLifecycle()
 
     LaunchedEffect(estado) {
         if (estado is AgregarClienteUiState.Guardado || estado is AgregarClienteUiState.Eliminado) onBack()
@@ -204,7 +211,7 @@ fun AgregarClienteScreen(
         titulo = titulo,
         esEdicion = viewModel.esEdicion,
         textoBoton = textoBoton,
-        supervisores = viewModel.supervisores,
+        supervisores = supervisores,
         onBack = onBack,
         onNombre = viewModel::onNombre,
         onTelefono = viewModel::onTelefono,

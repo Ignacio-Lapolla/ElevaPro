@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Badge
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,10 +65,12 @@ import javax.inject.Inject
 
 // ── UiState & ViewModel ──────────────────────────────────────────────────────
 
-data class NotificacionesUiState(
-    val notis: List<Notificacion> = emptyList(),
-) {
-    val sinLeer: Int get() = notis.count { !it.leida }
+sealed interface NotificacionesUiState {
+    data object Loading : NotificacionesUiState
+    data class Success(val notis: List<Notificacion>) : NotificacionesUiState {
+        val sinLeer: Int get() = notis.count { !it.leida }
+    }
+    data class Error(val mensaje: String) : NotificacionesUiState
 }
 
 @HiltViewModel
@@ -76,8 +79,8 @@ class NotificacionesViewModel @Inject constructor(
 ) : ViewModel() {
 
     val estado: StateFlow<NotificacionesUiState> = repo.observarNotificaciones()
-        .map { NotificacionesUiState(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotificacionesUiState())
+        .map { NotificacionesUiState.Success(it) as NotificacionesUiState }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotificacionesUiState.Loading)
 
     init {
         // El repositorio reactivo provee las notificaciones al suscribirse.
@@ -132,7 +135,7 @@ private fun NotificacionesContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text("Notificaciones", style = MaterialTheme.typography.titleLarge)
-                        if (estado.sinLeer > 0) {
+                        if (estado is NotificacionesUiState.Success && estado.sinLeer > 0) {
                             Badge(containerColor = MaterialTheme.colorScheme.primary) {
                                 Text(
                                     "${estado.sinLeer} nueva${if (estado.sinLeer != 1) "s" else ""}",
@@ -148,12 +151,12 @@ private fun NotificacionesContent(
                     }
                 },
                 actions = {
-                    if (estado.sinLeer > 0) {
+                    if (estado is NotificacionesUiState.Success && estado.sinLeer > 0) {
                         IconButton(onClick = onMarcarTodasLeidas) {
                             Icon(Icons.Outlined.DoneAll, contentDescription = "Marcar todas como leídas")
                         }
                     }
-                    if (estado.notis.isNotEmpty()) {
+                    if (estado is NotificacionesUiState.Success && estado.notis.isNotEmpty()) {
                         IconButton(onClick = onLimpiarTodas) {
                             Icon(Icons.Outlined.Delete, contentDescription = "Limpiar todas las notificaciones")
                         }
@@ -166,33 +169,44 @@ private fun NotificacionesContent(
         },
         modifier = modifier,
     ) { padding ->
-        if (estado.notis.isEmpty()) {
-            EstadoVacio(modifier = Modifier.padding(padding))
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                GrupoNotificacion.entries.forEach { grupo ->
-                    val items = estado.notis.filter { it.grupo == grupo }
-                    if (items.isNotEmpty()) {
-                        item(key = grupo.name) {
-                            Text(
-                                text = grupo.label.uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
-                            )
-                        }
-                        items(items, key = { it.id }) { noti ->
-                            NotiItem(
-                                noti = noti,
-                                onLeer = { onMarcarLeida(noti.id) },
-                                onEliminar = { onEliminar(noti.id) },
-                            )
+        when (estado) {
+            NotificacionesUiState.Loading -> Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator() }
+            is NotificacionesUiState.Error -> Text(
+                text = estado.mensaje,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(padding).padding(16.dp),
+            )
+            is NotificacionesUiState.Success -> if (estado.notis.isEmpty()) {
+                EstadoVacio(modifier = Modifier.padding(padding))
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    GrupoNotificacion.entries.forEach { grupo ->
+                        val items = estado.notis.filter { it.grupo == grupo }
+                        if (items.isNotEmpty()) {
+                            item(key = grupo.name) {
+                                Text(
+                                    text = grupo.label.uppercase(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                                )
+                            }
+                            items(items, key = { it.id }) { noti ->
+                                NotiItem(
+                                    noti = noti,
+                                    onLeer = { onMarcarLeida(noti.id) },
+                                    onEliminar = { onEliminar(noti.id) },
+                                )
+                            }
                         }
                     }
                 }

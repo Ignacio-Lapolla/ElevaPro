@@ -45,9 +45,11 @@ import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.FilledPrimaryButton
 import com.grupo.elevapro.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -59,7 +61,6 @@ data class FirmaUiState(
     val clienteNombre: String = "",
     val nombre: String = "",
     val hayTrazos: Boolean = false,
-    val confirmado: Boolean = false,
 )
 
 // ── ViewModel ──────────────────────────────────────────────────────────────
@@ -74,6 +75,9 @@ class FirmaViewModel @Inject constructor(
 
     private val _estado = MutableStateFlow(FirmaUiState())
     val estado: StateFlow<FirmaUiState> = _estado.asStateFlow()
+
+    private val _confirmado = Channel<Unit>(Channel.CONFLATED)
+    val confirmado = _confirmado.receiveAsFlow()
 
     init {
         viewModelScope.launch {
@@ -91,7 +95,7 @@ class FirmaViewModel @Inject constructor(
     fun confirmar(firmaBase64: String) {
         viewModelScope.launch {
             repo.firmar(ordenId, firmaBase64, _estado.value.nombre)
-            _estado.update { it.copy(confirmado = true) }
+            _confirmado.send(Unit)
         }
     }
 }
@@ -136,9 +140,7 @@ fun FirmaScreen(
     // Plain list, not state — only currentPath (state) drives recomposition
     val currentPoints = remember { mutableListOf<Offset>() }
 
-    LaunchedEffect(estado.confirmado) {
-        if (estado.confirmado) onBack()
-    }
+    LaunchedEffect(Unit) { viewModel.confirmado.collect { onBack() } }
 
     FirmaContent(
         estado = estado,

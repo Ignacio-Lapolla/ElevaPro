@@ -51,11 +51,11 @@ import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.StatusChip
 import com.grupo.elevapro.ui.components.TipoEstado
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -78,15 +78,13 @@ class PerfilViewModel @Inject constructor(
         // Para H2: aquí se refrescarían los datos del perfil desde el backend.
     }
 
-    private val _loggedOut = MutableStateFlow(false)
-    val loggedOut: StateFlow<Boolean> = _loggedOut.asStateFlow()
+    private val _loggedOut = Channel<Unit>(Channel.CONFLATED)
+    val loggedOut = _loggedOut.receiveAsFlow()
 
     fun logout() {
         authRepository.logout()
-        _loggedOut.value = true
+        viewModelScope.launch { _loggedOut.send(Unit) }
     }
-
-    fun onLogoutHandled() { _loggedOut.value = false }
 }
 
 @Composable
@@ -104,15 +102,8 @@ fun PerfilScreen(
     modifier: Modifier = Modifier,
     viewModel: PerfilViewModel = hiltViewModel(),
 ) {
-    val estado    by viewModel.estado.collectAsStateWithLifecycle()
-    val loggedOut by viewModel.loggedOut.collectAsStateWithLifecycle()
-
-    LaunchedEffect(loggedOut) {
-        if (loggedOut) {
-            viewModel.onLogoutHandled()
-            onLogout()
-        }
-    }
+    val estado by viewModel.estado.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { viewModel.loggedOut.collect { onLogout() } }
 
     PerfilContent(
         estado           = estado,

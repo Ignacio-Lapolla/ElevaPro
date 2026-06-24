@@ -36,11 +36,12 @@ import com.grupo.elevapro.ui.components.ElevaProTextField
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.FilledPrimaryButton
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -70,7 +71,6 @@ sealed interface NuevaFacturaUiState {
         val form: NuevaFacturaFormState,
         val clientes: List<Cliente>,
     ) : NuevaFacturaUiState
-    data object Guardado : NuevaFacturaUiState
 }
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
@@ -119,18 +119,15 @@ class NuevaFacturaViewModel @Inject constructor(
                         estado = EstadoFactura.PENDIENTE,
                     )
                 )
-                // Emitir Guardado directamente en el StateFlow compartido no es posible
-                // porque combine siempre reconstruye desde los flows base.
-                // Usamos un flag dedicado para señalar navegación.
-                _guardado.value = true
+                _guardado.send(Unit)
             } catch (e: Exception) {
                 update { copy(guardando = false, error = "No se pudo guardar la factura") }
             }
         }
     }
 
-    private val _guardado = MutableStateFlow(false)
-    val guardado: StateFlow<Boolean> = _guardado.asStateFlow()
+    private val _guardado = Channel<Unit>(Channel.CONFLATED)
+    val guardado = _guardado.receiveAsFlow()
 
     private fun update(block: NuevaFacturaFormState.() -> NuevaFacturaFormState) =
         _form.update { it.block() }
@@ -145,11 +142,8 @@ fun NuevaFacturaScreen(
     viewModel: NuevaFacturaViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
-    val guardado by viewModel.guardado.collectAsStateWithLifecycle()
 
-    LaunchedEffect(guardado) {
-        if (guardado) onBack()
-    }
+    LaunchedEffect(Unit) { viewModel.guardado.collect { onBack() } }
 
     val formulario = estado as? NuevaFacturaUiState.Formulario
 

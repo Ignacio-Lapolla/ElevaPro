@@ -47,11 +47,14 @@ import com.grupo.elevapro.ui.components.ElevaProTextField
 import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.FilledPrimaryButton
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -100,18 +103,17 @@ class DatosEmpresaViewModel @Inject constructor(
         .map { DatosEmpresaUiState.Success(it) as DatosEmpresaUiState }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DatosEmpresaUiState.Loading)
 
-    private val _guardadoExitoso = MutableStateFlow(false)
-    val guardadoExitoso: StateFlow<Boolean> = _guardadoExitoso.asStateFlow()
+    private val _guardadoExitoso = Channel<Unit>(Channel.CONFLATED)
+    val guardadoExitoso = _guardadoExitoso.receiveAsFlow()
 
     private val _certNombre = MutableStateFlow<String?>(null)
     val certNombre: StateFlow<String?> = _certNombre.asStateFlow()
 
     init {
         viewModelScope.launch {
-            empresaRepository.observar().collect { empresa ->
-                if (_certNombre.value == null && empresa.certificadoAfipNombre != null) {
-                    _certNombre.value = empresa.certificadoAfipNombre
-                }
+            val empresa = empresaRepository.observar().first()
+            if (_certNombre.value == null && empresa.certificadoAfipNombre != null) {
+                _certNombre.value = empresa.certificadoAfipNombre
             }
         }
     }
@@ -147,11 +149,9 @@ class DatosEmpresaViewModel @Inject constructor(
                     certificadoAfipNombre = _certNombre.value,
                 )
             )
-            _guardadoExitoso.value = true
+            _guardadoExitoso.send(Unit)
         }
     }
-
-    fun onGuardadoHandled() { _guardadoExitoso.value = false }
 }
 
 @Composable
@@ -160,15 +160,20 @@ fun DatosEmpresaScreen(
     modifier: Modifier = Modifier,
     viewModel: DatosEmpresaViewModel = hiltViewModel(),
 ) {
-    val estado          by viewModel.estado.collectAsStateWithLifecycle()
-    val guardadoExitoso by viewModel.guardadoExitoso.collectAsStateWithLifecycle()
-    val certNombre      by viewModel.certNombre.collectAsStateWithLifecycle()
+    val estado     by viewModel.estado.collectAsStateWithLifecycle()
+    val certNombre by viewModel.certNombre.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.guardadoExitoso.collect {
+            snackbarHostState.showSnackbar("Cambios guardados")
+        }
+    }
 
     DatosEmpresaContent(
         estado            = estado,
-        guardadoExitoso   = guardadoExitoso,
         certNombre        = certNombre,
-        onGuardadoHandled = viewModel::onGuardadoHandled,
+        snackbarHostState = snackbarHostState,
         onToggleCert      = viewModel::toggleCertificado,
         onGuardar         = viewModel::guardar,
         onBack            = onBack,
@@ -180,23 +185,13 @@ fun DatosEmpresaScreen(
 @Composable
 private fun DatosEmpresaContent(
     estado: DatosEmpresaUiState,
-    guardadoExitoso: Boolean,
     certNombre: String?,
-    onGuardadoHandled: () -> Unit,
+    snackbarHostState: SnackbarHostState,
     onToggleCert: () -> Unit,
     onGuardar: (String, String, String, String, String, CondicionIva) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(guardadoExitoso) {
-        if (guardadoExitoso) {
-            snackbarHostState.showSnackbar("Cambios guardados")
-            onGuardadoHandled()
-        }
-    }
-
     Scaffold(
         topBar = { ElevaProTopAppBar(titulo = "Datos de la empresa", onBack = onBack) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
