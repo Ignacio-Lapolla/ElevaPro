@@ -68,10 +68,12 @@ import com.grupo.elevapro.ui.components.ElevaProTopAppBar
 import com.grupo.elevapro.ui.components.FilledPrimaryButton
 import com.grupo.elevapro.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -111,6 +113,9 @@ class AgregarClienteViewModel @Inject constructor(
 
     private val _estado = MutableStateFlow<AgregarClienteUiState>(AgregarClienteUiState.Formulario())
     val estado: StateFlow<AgregarClienteUiState> = _estado.asStateFlow()
+
+    private val _navegarAtras = Channel<Unit>(Channel.CONFLATED)
+    val navegarAtras = _navegarAtras.receiveAsFlow()
 
     val supervisores: StateFlow<List<Supervisor>> =
         supervisoresRepository.observarSupervisores()
@@ -166,6 +171,7 @@ class AgregarClienteViewModel @Inject constructor(
                 )
                 if (esEdicion) repository.actualizar(cliente) else repository.agregar(cliente)
                 _estado.value = AgregarClienteUiState.Guardado
+                _navegarAtras.send(Unit)
             } catch (e: Exception) {
                 updateForm { copy(guardando = false, error = "No se pudo guardar el cliente") }
             }
@@ -177,6 +183,7 @@ class AgregarClienteViewModel @Inject constructor(
         viewModelScope.launch {
             repository.eliminar(id)
             _estado.value = AgregarClienteUiState.Eliminado
+            _navegarAtras.send(Unit)
         }
     }
 
@@ -198,8 +205,8 @@ fun AgregarClienteScreen(
     val estado       by viewModel.estado.collectAsStateWithLifecycle()
     val supervisores by viewModel.supervisores.collectAsStateWithLifecycle()
 
-    LaunchedEffect(estado) {
-        if (estado is AgregarClienteUiState.Guardado || estado is AgregarClienteUiState.Eliminado) onBack()
+    LaunchedEffect(Unit) {
+        viewModel.navegarAtras.collect { onBack() }
     }
 
     val form = (estado as? AgregarClienteUiState.Formulario)?.form ?: AgregarClienteFormState()
