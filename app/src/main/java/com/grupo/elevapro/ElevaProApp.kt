@@ -1,6 +1,8 @@
 package com.grupo.elevapro
 
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.DrawerValue
@@ -113,7 +115,9 @@ fun ElevaProApp() {
             NavGraph(
                 navController = navController,
                 startDestination = if (usuario == null) Screen.Onboarding.route else Screen.Ordenes.route,
-                modifier = Modifier.padding(padding),
+                modifier = Modifier
+                    .padding(padding)
+                    .consumeWindowInsets(WindowInsets.navigationBars),
                 onOpenDrawer = { scope.launch { drawerState.open() } },
             )
         }

@@ -52,6 +52,7 @@ import com.grupo.elevapro.ui.components.StatusChip
 import com.grupo.elevapro.ui.components.TipoEstado
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
