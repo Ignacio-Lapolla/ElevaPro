@@ -23,5 +23,7 @@ class FakeClienteRepository(initial: List<Cliente> = emptyList()) : ClienteRepos
         }
     }
 
+    override suspend fun eliminar(id: String) { _clientes.update { lista -> lista.filter { it.id != id } } }
+
     override fun obtenerSupervisorNombre(supervisorId: String): String? = null
 }

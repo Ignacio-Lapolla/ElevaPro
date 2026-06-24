@@ -2,9 +2,13 @@ package com.grupo.elevapro
 
 import androidx.lifecycle.SavedStateHandle
 import com.grupo.elevapro.data.model.domain.Cliente
+import com.grupo.elevapro.data.model.domain.Supervisor
+import com.grupo.elevapro.data.repository.SupervisoresRepository
 import com.grupo.elevapro.ui.screen.clientes.AgregarClienteUiState
 import com.grupo.elevapro.ui.screen.clientes.AgregarClienteViewModel
 import com.grupo.elevapro.ui.navigation.Screen
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -41,6 +45,13 @@ class AgregarClienteViewModelTest {
     @After
     fun tearDown() { Dispatchers.resetMain() }
 
+    private val fakeSupervisoresRepo = object : SupervisoresRepository {
+        override fun observarSupervisores(): Flow<List<Supervisor>> = flowOf(emptyList())
+        override suspend fun obtenerPorId(id: String): Supervisor? = null
+        override suspend fun crear(supervisor: Supervisor) {}
+        override suspend fun actualizar(supervisor: Supervisor) {}
+    }
+
     private fun buildVm(
         repo: FakeClienteRepository = FakeClienteRepository(),
         clienteId: String? = null,
@@ -50,7 +61,7 @@ class AgregarClienteViewModelTest {
         } else {
             SavedStateHandle()
         }
-        return AgregarClienteViewModel(handle, repo)
+        return AgregarClienteViewModel(handle, repo, fakeSupervisoresRepo)
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.grupo.elevapro.ui.screen.facturacion.GenerarFacturaViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -75,22 +76,25 @@ class GenerarFacturaViewModelTest {
     }
 
     @Test
-    fun `generar sin form valido no emite Generado`() = runTest {
+    fun `generar sin form valido no navega atras`() = runTest {
         val vm = buildVm()
         dispatcher.scheduler.advanceUntilIdle()
         vm.generar()
         dispatcher.scheduler.advanceUntilIdle()
-        assertFalse(vm.estado.first() is GenerarFacturaUiState.Generado)
+        assertTrue(vm.estado.first() is GenerarFacturaUiState.Formulario)
     }
 
     @Test
-    fun `generar con form completo emite Generado`() = runTest {
+    fun `generar con form completo navega atras`() = runTest {
         val vm = buildVm()
         dispatcher.scheduler.advanceUntilIdle()
         vm.llenarFormValido()
+        dispatcher.scheduler.advanceUntilIdle()
+        var navigated = false
+        backgroundScope.launch { vm.navegarAtras.first(); navigated = true }
         vm.generar()
         dispatcher.scheduler.advanceUntilIdle()
-        assertTrue(vm.estado.first() is GenerarFacturaUiState.Generado)
+        assertTrue(navigated)
     }
 
     @Test
@@ -99,6 +103,7 @@ class GenerarFacturaViewModelTest {
         val vm = buildVm(facturacionRepo = facturacionRepo)
         dispatcher.scheduler.advanceUntilIdle()
         vm.llenarFormValido()
+        dispatcher.scheduler.advanceUntilIdle()
         vm.generar()
         dispatcher.scheduler.advanceUntilIdle()
         val facturas = facturacionRepo.observarFacturas().first()
@@ -111,6 +116,7 @@ class GenerarFacturaViewModelTest {
         val vm = buildVm()
         dispatcher.scheduler.advanceUntilIdle()
         vm.onMontoNeto("1.500,75abc$%")
+        dispatcher.scheduler.advanceUntilIdle()
         val form = (vm.estado.first() as GenerarFacturaUiState.Formulario).form
         assertEquals("1.500,75", form.montoNetoStr)
     }
@@ -121,6 +127,7 @@ class GenerarFacturaViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         vm.onTipo("A")
         vm.onMontoNeto("1000")
+        dispatcher.scheduler.advanceUntilIdle()
         val form = (vm.estado.first() as GenerarFacturaUiState.Formulario).form
         assertEquals(210.0, form.montoIVA, 0.01)
         assertEquals(1210.0, form.montoTotal, 0.01)
@@ -132,6 +139,7 @@ class GenerarFacturaViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         vm.onTipo("C")
         vm.onMontoNeto("1000")
+        dispatcher.scheduler.advanceUntilIdle()
         val form = (vm.estado.first() as GenerarFacturaUiState.Formulario).form
         assertEquals(0.0, form.montoIVA, 0.01)
         assertEquals(1000.0, form.montoTotal, 0.01)
@@ -143,6 +151,7 @@ class GenerarFacturaViewModelTest {
         val vm = buildVm(facturacionRepo = facturacionRepo)
         dispatcher.scheduler.advanceUntilIdle()
         vm.llenarFormValido() // tipo B, monto 1000
+        dispatcher.scheduler.advanceUntilIdle()
         vm.generar()
         dispatcher.scheduler.advanceUntilIdle()
         val factura = facturacionRepo.observarFacturas().first()[0]
