@@ -94,7 +94,7 @@ app/src/main/java/com/grupo/elevapro/
 
 | Documento | Descripción |
 |---|---|
-| [Entrega H1](docs/) | Dominio, Figma, casos de uso HU-01→HU-07, arquitectura, tecnologías |
+| [Casos de uso](docs/casos_de_uso.md) | HU-01→HU-07: actores, flujos principales, flujos alternativos, postcondiciones |
 | [Entrega H2](docs/H2_entrega.md) | Persistencia Room, nuevas features, ciclo de vida, tests, limitaciones |
 | [Diagramas de secuencia](docs/diagramas_secuencia.md) | 6 flujos principales en Mermaid |
 | [Medición cold start](docs/cold_start_medicion.md) | Métodos de medición, script ADB, requisito <2.5s |
