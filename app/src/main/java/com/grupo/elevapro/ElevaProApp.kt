@@ -13,6 +13,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import com.grupo.elevapro.ui.theme.ElevaProTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -70,6 +71,8 @@ class AppViewModel @Inject constructor(
 fun ElevaProApp() {
     val navController = rememberNavController()
     val authVm: AppViewModel = hiltViewModel()
+    val modoOscuro by authVm.modoOscuro.collectAsStateWithLifecycle()
+
     val usuario by authVm.usuarioActual.collectAsStateWithLifecycle()
     val permisos by authVm.permisosActuales.collectAsStateWithLifecycle()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
@@ -93,42 +96,44 @@ fun ElevaProApp() {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = currentRoute in rutasConBottomNav && usuario != null,
-        drawerContent = {
-            ModalDrawerSheet(modifier = Modifier.width(300.dp)) {
-                ElevaProDrawerContent(
-                    usuario = usuario,
-                    permisos = permisos,
-                    currentRoute = currentRoute,
-                    navController = navController,
-                    onLogout = {
-                        authVm.logout()
-                        scope.launch { drawerState.close() }
-                    },
-                    onClose = { scope.launch { drawerState.close() } },
-                )
-            }
-        },
-    ) {
-        Scaffold(
-            contentWindowInsets = WindowInsets(0),
-            bottomBar = {
-                val u = usuario
-                if (u != null && currentRoute in rutasConBottomNav) {
-                    ElevaProBottomNav(navController = navController, rol = u.rol)
+    ElevaProTheme(darkTheme = modoOscuro) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            gesturesEnabled = currentRoute in rutasConBottomNav && usuario != null,
+            drawerContent = {
+                ModalDrawerSheet(modifier = Modifier.width(300.dp)) {
+                    ElevaProDrawerContent(
+                        usuario = usuario,
+                        permisos = permisos,
+                        currentRoute = currentRoute,
+                        navController = navController,
+                        onLogout = {
+                            authVm.logout()
+                            scope.launch { drawerState.close() }
+                        },
+                        onClose = { scope.launch { drawerState.close() } },
+                    )
                 }
             },
-        ) { padding ->
-            NavGraph(
-                navController = navController,
-                startDestination = if (usuario == null) Screen.Onboarding.route else Screen.Ordenes.route,
-                modifier = Modifier
-                    .padding(padding)
-                    .consumeWindowInsets(WindowInsets.navigationBars),
-                onOpenDrawer = { scope.launch { drawerState.open() } },
-            )
+        ) {
+            Scaffold(
+                contentWindowInsets = WindowInsets(0),
+                bottomBar = {
+                    val u = usuario
+                    if (u != null && currentRoute in rutasConBottomNav) {
+                        ElevaProBottomNav(navController = navController, rol = u.rol)
+                    }
+                },
+            ) { padding ->
+                NavGraph(
+                    navController = navController,
+                    startDestination = if (usuario == null) Screen.Onboarding.route else Screen.Ordenes.route,
+                    modifier = Modifier
+                        .padding(padding)
+                        .consumeWindowInsets(WindowInsets.navigationBars),
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                )
+            }
         }
     }
 }
