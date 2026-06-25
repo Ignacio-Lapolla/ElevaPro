@@ -26,6 +26,12 @@
 7. [Limitaciones actuales](#7-limitaciones-actuales)
 8. [Mejoras futuras (H3)](#8-mejoras-futuras-h3)
 
+**Documentación complementaria:**
+- [Casos de uso HU-01 a HU-07](casos_de_uso.md)
+- [Diagramas de secuencia](diagramas_secuencia.md)
+- [Heurísticas de Nielsen — checklist](nielsen_checklist.md)
+- [Métricas de cold start](cold_start_medicion.md)
+
 ---
 
 ## 1. Resumen ejecutivo H1 → H2
@@ -190,30 +196,72 @@ El `NavGraph` tiene ~28 rutas definidas en `sealed class Screen` con parámetros
 
 ## 5. Tests unitarios
 
-Se agregaron 5 tests en `OrdenesViewModelTest` cubriendo el comportamiento de `mostrarVistaPrevia`:
+**36 tests unitarios — todos passing ✅**
+
+Se usa `kotlinx-coroutines-test` con `runTest` y `StandardTestDispatcher` para testear flows y coroutines sin timers reales. Cada suite tiene su propio `FakeRepository` en memoria para aislar la lógica del ViewModel de la capa de datos.
+
+### AgregarClienteViewModelTest — 10 tests
+
+| Test | Qué verifica |
+|---|---|
+| `estado inicial es Formulario vacio` | El estado inicial es `Formulario` con campos vacíos |
+| `onNombre actualiza el form` | `onNombre()` propaga el cambio al form |
+| `cuit se recorta a 11 digitos` | CUIT no acepta más de 11 caracteres |
+| `cuit solo acepta digitos` | CUIT filtra caracteres no numéricos |
+| `form sin nombre no es valido` | `isFormValid` es `false` sin nombre |
+| `guardar sin nombre no emite Guardado` | `guardar()` no avanza si el form es inválido |
+| `guardar con nombre valido emite Guardado` | `guardar()` emite `Guardado` con form válido |
+| `guardar crea el cliente en el repositorio` | El cliente se persiste en el repositorio |
+| `en modo edicion carga los datos del cliente existente` | Edición pre-carga los datos del cliente |
+| `en modo edicion guardar actualiza en lugar de crear` | Edición llama `actualizar()` no `agregar()` |
+
+### GenerarFacturaViewModelTest — 10 tests
+
+| Test | Qué verifica |
+|---|---|
+| `estado inicial es Loading luego Formulario` | Transición Loading → Formulario al iniciar |
+| `Formulario expone los clientes del repositorio` | El listado de clientes se carga correctamente |
+| `form sin datos no es valido` | `isFormValid` es `false` con form vacío |
+| `generar sin form valido no navega atras` | `generar()` no avanza si el form es inválido |
+| `generar con form completo navega atras` | `generar()` emite en `navegarAtras` con form válido |
+| `generar agrega la factura al repositorio` | La factura se persiste en el repositorio |
+| `onMontoNeto solo acepta digitos coma y punto` | Filtrado de entrada numérica |
+| `calculo IVA correcto para tipo A` | IVA 21% calculado correctamente para factura tipo A |
+| `calculo IVA es cero para tipo C` | Sin IVA para factura tipo C |
+| `factura generada usa monto total con IVA para tipo B` | El monto guardado incluye IVA para tipo B |
+
+### OrdenesViewModelTest — 10 tests
 
 | Test | Qué verifica |
 |---|---|
 | `vistaPrevia_estadoInicial_esFalse` | El valor inicial en `SavedStateHandle` es `false` |
-| `vistaPrevia_alActivar_emiteTrue` | Al llamar `activarVistaPrevia()` el Flow emite `true` |
-| `vistaPrevia_alDesactivar_emiteFalse` | Al llamar `cerrarVistaPrevia()` el Flow emite `false` |
-| `vistaPrevia_persisteEnSavedStateHandle` | El valor se escribe en `SavedStateHandle` correctamente |
-| `vistaPrevia_restauradaTrasProcessDeath` | Al recrear el ViewModel con handle pre-poblado, restaura `true` |
+| `vistaPrevia_alActivar_emiteTrue` | `activarVistaPrevia()` emite `true` |
+| `vistaPrevia_alDesactivar_emiteFalse` | `cerrarVistaPrevia()` emite `false` |
+| `vistaPrevia_persisteEnSavedStateHandle` | El valor se escribe en `SavedStateHandle` |
+| `vistaPrevia_restauradaTrasProcessDeath` | Recrear el ViewModel con handle pre-poblado restaura el estado |
+| *(5 tests adicionales de filtrado y estado de órdenes)* | Filtros por estado, búsqueda y carga de lista |
 
-**Setup de testing:**
+### PermisosRepositoryTest — 5 tests
+
+| Test | Qué verifica |
+|---|---|
+| *(5 tests de PermisosRepository)* | CRUD de permisos en Room: insertar, consultar, actualizar, eliminar, listar |
+
+### ExampleUnitTest — 1 test
+
+| Test | Qué verifica |
+|---|---|
+| `addition_isCorrect` | Sanity check del entorno de testing |
+
+### Setup común
 
 ```kotlin
 @Before
-fun setUp() {
-    savedStateHandle = SavedStateHandle()
-    viewModel = OrdenesViewModel(
-        ordenesRepository = FakeOrdenesRepository(),
-        savedStateHandle = savedStateHandle
-    )
-}
-```
+fun setUp() { Dispatchers.setMain(StandardTestDispatcher()) }
 
-Se usa `kotlinx-coroutines-test` con `runTest` y `TestCoroutineDispatcher` para testear flows sin timers reales.
+@After
+fun tearDown() { Dispatchers.resetMain() }
+```
 
 ---
 
