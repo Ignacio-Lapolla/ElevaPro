@@ -22,9 +22,10 @@
 3. [Nuevas funcionalidades implementadas](#3-nuevas-funcionalidades-implementadas)
 4. [Ciclo de vida, navegación y estado de UI](#4-ciclo-de-vida-navegación-y-estado-de-ui)
 5. [Tests unitarios](#5-tests-unitarios)
-6. [Arquitectura actualizada H1 → H2](#6-arquitectura-actualizada-h1--h2)
-7. [Limitaciones actuales](#7-limitaciones-actuales)
-8. [Mejoras futuras (H3)](#8-mejoras-futuras-h3)
+6. [Justificación del API Level mínimo](#6-justificación-del-api-level-mínimo)
+7. [Arquitectura actualizada H1 → H2](#7-arquitectura-actualizada-h1--h2)
+8. [Limitaciones actuales](#8-limitaciones-actuales)
+9. [Mejoras futuras (H3)](#9-mejoras-futuras-h3)
 
 **Documentación complementaria:**
 - [Casos de uso HU-01 a HU-07](casos_de_uso.md)
@@ -265,7 +266,39 @@ fun tearDown() { Dispatchers.resetMain() }
 
 ---
 
-## 6. Arquitectura actualizada H1 → H2
+## 6. Justificación del API Level mínimo
+
+| Parámetro | Valor |
+|-----------|-------|
+| `minSdk` | 27 (Android 8.1 Oreo) |
+| `targetSdk` | 36 (Android 16) |
+| `compileSdk` | 36 |
+
+### Público objetivo
+
+ElevaPro está destinada a **técnicos de ascensores en Argentina**, que utilizan el dispositivo como herramienta de trabajo provista o gestionada por la empresa. En entornos corporativos y de campo, el ciclo de renovación de dispositivos es más lento que en el mercado de consumo: es habitual encontrar equipos con 3-4 años de antigüedad corriendo Android 8.x o 9.x.
+
+### Cobertura de mercado
+
+Según el Android Studio Distribution Dashboard, **Android 8.1 (API 27) o superior cubre aproximadamente el 96% de los dispositivos Android activos** a nivel global. Para el mercado empresarial argentino, donde los dispositivos suelen ser de gama media-baja con actualizaciones de sistema menos frecuentes, esta cobertura es aún más representativa.
+
+### Justificación técnica de API 27
+
+`minSdk = 27` se eligió por las siguientes razones:
+
+- **API 26 (Android 8.0)** introdujo los canales de notificación (`NotificationChannel`), requeridos para la futura implementación de alertas de nuevas órdenes.
+- **API 27 (Android 8.1)** agrega `autofillHints` para formularios (CUIT, email, teléfono) y mejoras en `WifiManager` relevantes para detección de conectividad.
+- Bajar a **API 24 o 25** hubiera requerido compatibilidad con versiones de Jetpack Compose y Material 3 más restrictivas, incrementando la complejidad de mantenimiento sin ampliar significativamente la base de usuarios objetivo.
+- Subir a **API 29+** hubiera excluido dispositivos corporativos con Android 8.x que aún están en servicio activo en el sector.
+
+### Conclusión
+
+`minSdk = 27` representa el balance óptimo entre cobertura del público objetivo (~96%), acceso a las APIs modernas de Android necesarias para la app y compatibilidad con Jetpack Compose + Material 3.
+
+---
+
+## 7. Arquitectura actualizada H1 → H2
+
 
 ### Diagrama de capas actualizado
 
@@ -310,7 +343,7 @@ fun tearDown() { Dispatchers.resetMain() }
 
 ---
 
-## 7. Limitaciones actuales
+## 8. Limitaciones actuales
 
 | Limitación | Detalle | Impacto |
 |---|---|---|
@@ -323,7 +356,7 @@ fun tearDown() { Dispatchers.resetMain() }
 
 ---
 
-## 8. Mejoras futuras (H3)
+## 9. Mejoras futuras (H3)
 
 | Mejora | Descripción | Prioridad |
 |---|---|---|
