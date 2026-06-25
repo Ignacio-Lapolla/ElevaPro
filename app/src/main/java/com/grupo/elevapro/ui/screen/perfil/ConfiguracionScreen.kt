@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.grupo.elevapro.AppViewModel
 import com.grupo.elevapro.ui.components.SectionTitle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,7 +60,6 @@ import javax.inject.Inject
 // ── UiState & ViewModel ──────────────────────────────────────────────────────
 
 data class ConfiguracionUiState(
-    val modoOscuro: Boolean = false,
     val notificacionesPush: Boolean = true,
     val sincronizacionAuto: Boolean = true,
     val idioma: String = "es",
@@ -71,11 +71,6 @@ class ConfiguracionViewModel @Inject constructor() : ViewModel() {
     private val _estado = MutableStateFlow(ConfiguracionUiState())
     val estado: StateFlow<ConfiguracionUiState> = _estado.asStateFlow()
 
-    init {
-        // Para H2: aquí se cargarán las preferencias del usuario desde el backend.
-    }
-
-    fun onModoOscuro(value: Boolean) { _estado.update { it.copy(modoOscuro = value) } }
     fun onNotificacionesPush(value: Boolean) { _estado.update { it.copy(notificacionesPush = value) } }
     fun onSincronizacionAuto(value: Boolean) { _estado.update { it.copy(sincronizacionAuto = value) } }
     fun onIdioma(value: String) { _estado.update { it.copy(idioma = value) } }
@@ -88,12 +83,15 @@ fun ConfiguracionScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ConfiguracionViewModel = hiltViewModel(),
+    appViewModel: AppViewModel = hiltViewModel(),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
+    val modoOscuro by appViewModel.modoOscuro.collectAsStateWithLifecycle()
     ConfiguracionContent(
         estado = estado,
+        modoOscuro = modoOscuro,
         onBack = onBack,
-        onModoOscuro = viewModel::onModoOscuro,
+        onModoOscuro = appViewModel::onModoOscuro,
         onNotificacionesPush = viewModel::onNotificacionesPush,
         onSincronizacionAuto = viewModel::onSincronizacionAuto,
         onIdioma = viewModel::onIdioma,
@@ -107,6 +105,7 @@ fun ConfiguracionScreen(
 @Composable
 private fun ConfiguracionContent(
     estado: ConfiguracionUiState,
+    modoOscuro: Boolean,
     onBack: () -> Unit,
     onModoOscuro: (Boolean) -> Unit,
     onNotificacionesPush: (Boolean) -> Unit,
@@ -149,8 +148,8 @@ private fun ConfiguracionContent(
                 SwitchListItem(
                     icon = Icons.Outlined.DarkMode,
                     label = "Modo oscuro",
-                    subtitle = if (estado.modoOscuro) "Activado" else "Desactivado",
-                    checked = estado.modoOscuro,
+                    subtitle = if (modoOscuro) "Activado" else "Desactivado",
+                    checked = modoOscuro,
                     onCheckedChange = onModoOscuro,
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

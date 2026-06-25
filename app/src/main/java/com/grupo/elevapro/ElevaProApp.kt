@@ -24,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import com.grupo.elevapro.data.model.domain.Permiso
 import com.grupo.elevapro.data.model.domain.Rol
 import com.grupo.elevapro.data.model.domain.Usuario
+import com.grupo.elevapro.data.local.PreferenciasDataSource
 import com.grupo.elevapro.data.repository.AuthRepository
 import com.grupo.elevapro.data.repository.PermisosRepository
 import com.grupo.elevapro.ui.components.ElevaProBottomNav
@@ -44,6 +45,7 @@ import javax.inject.Inject
 class AppViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val permisosRepository: PermisosRepository,
+    private val preferenciasDataSource: PreferenciasDataSource,
 ) : ViewModel() {
     val usuarioActual: StateFlow<Usuario?> = authRepository.usuarioActual
 
@@ -53,6 +55,13 @@ class AppViewModel @Inject constructor(
             if (u != null) permisosRepository.observarPermisos(u.id) else flowOf(emptySet())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    val modoOscuro: StateFlow<Boolean> = preferenciasDataSource.modoOscuro
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun onModoOscuro(value: Boolean) {
+        viewModelScope.launch { preferenciasDataSource.setModoOscuro(value) }
+    }
 
     fun logout() = authRepository.logout()
 }
